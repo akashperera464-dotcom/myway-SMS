@@ -37,8 +37,22 @@ function saveOne<T>(key: string, val: T): void {
   localStorage.setItem(key, JSON.stringify(val));
 }
 
+function ensureUsers() {
+  const existing = getList<AppUser>(KEYS.users);
+  if (existing.length === 0) {
+    const users: AppUser[] = [
+      { id: 'u1', username: 'akash@myway.lk', fullName: 'Akash', role: 'Super Admin', status: 'Active', password: 'akash123' },
+      { id: 'u2', username: 'owner@myway.lk', fullName: 'Owner', role: 'Owner', status: 'Active', password: 'owner123' },
+      { id: 'u3', username: 'ops@myway.lk', fullName: 'Operations Staff', role: 'Operations Staff', status: 'Active', password: 'ops123' },
+      { id: 'u4', username: 'teacher@myway.lk', fullName: 'Teacher Demo', role: 'Teacher', status: 'Active', password: 'teacher123' },
+      { id: 'u5', username: 'student@myway.lk', fullName: 'Student Demo', role: 'Student', status: 'Active', password: 'student123' },
+    ];
+    saveList(KEYS.users, users);
+  }
+}
+
 function seedData() {
-  if (localStorage.getItem(KEYS.initialized)) return;
+  if (localStorage.getItem(KEYS.initialized)) { ensureUsers(); return; }
 
   const teachers: Teacher[] = [
     { id: 't1', fullName: 'Mr. Sunil Jayawardena', nic: '198012345678', phone: '0712345678', whatsapp: '0712345678', email: 'sunil@myway.lk', subjects: ['Mathematics', 'Combined Mathematics'], qualification: 'B.Sc. Mathematics (University of Peradeniya)', address: '45/2, Peradeniya Road, Kandy', joinDate: '2020-01-15', salary: 80000, status: 'Active' },
