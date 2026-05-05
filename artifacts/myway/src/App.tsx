@@ -113,10 +113,6 @@ function Login() {
             Sign In
           </button>
 
-          <div className="text-xs text-muted-foreground pt-1 space-y-0.5">
-            <p className="font-medium">Demo credentials:</p>
-            <p>Super Admin: akash@myway.lk / akash123</p>
-          </div>
         </form>
       </div>
     </div>
