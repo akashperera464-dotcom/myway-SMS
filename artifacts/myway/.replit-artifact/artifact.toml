@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "MYWAY Student Management System"
+version = "1.0.0"
+id = "artifacts/myway"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21927
+
+[services.development]
+run = "pnpm --filter @workspace/myway run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/myway", "run", "build" ]
+publicDir = "artifacts/myway/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21927"
+BASE_PATH = "/"
