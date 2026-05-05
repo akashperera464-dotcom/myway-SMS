@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { ArrowLeft, Phone, MessageCircle, Mail, Edit, Save, X } from "lucide-react";
-import { getStudent, saveStudent, getClasses, getPaymentsForStudent, getResultsForStudent, getAttendance } from "@/lib/storage";
+import { getStudent, saveStudent, getClasses, getTeachers, getPaymentsForStudent, getResultsForStudent, getAttendance } from "@/lib/storage";
 import { formatCurrency, formatDate, getGrade, getGradeColor, GRADES, SL_DISTRICTS, SL_PROVINCES } from "@/lib/utils";
 import type { Student } from "@/lib/types";
 
@@ -24,6 +24,7 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
   );
 
   const classes = getClasses();
+  const teachers = getTeachers();
   const payments = getPaymentsForStudent(params.id);
   const results = getResultsForStudent(params.id);
   const attendance = getAttendance();
@@ -81,6 +82,7 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[student.status]}`}>{student.status}</span>
           </div>
           <p className="text-sm text-muted-foreground">{student.nameInitials} · {student.studentId}</p>
+          <p className="text-sm text-muted-foreground">Reg No: {student.registerNo || '-'}</p>
           <p className="text-sm text-muted-foreground">{student.grade} · {student.medium} Medium · {student.school}</p>
           <div className="flex flex-wrap gap-3 mt-3">
             <a href={`tel:${student.guardianPhone}`} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"><Phone className="w-3.5 h-3.5" />{student.guardianPhone}</a>
@@ -102,6 +104,7 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
             <h4 className="font-semibold text-foreground mb-4">Personal Details</h4>
             {editing ? (
               <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-xs font-medium text-muted-foreground block mb-1">Register No</label><input value={form.registerNo || ''} onChange={e => set('registerNo', e.target.value)} className={inputCls} /></div>
                 <div><label className="text-xs font-medium text-muted-foreground block mb-1">Full Name</label><input value={form.fullName} onChange={e => set('fullName', e.target.value)} className={inputCls} /></div>
                 <div><label className="text-xs font-medium text-muted-foreground block mb-1">Initials</label><input value={form.nameInitials} onChange={e => set('nameInitials', e.target.value)} className={inputCls} /></div>
                 <div><label className="text-xs font-medium text-muted-foreground block mb-1">Date of Birth</label><input type="date" value={form.dateOfBirth} onChange={e => set('dateOfBirth', e.target.value)} className={inputCls} /></div>
@@ -122,11 +125,15 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                 <div><label className="text-xs font-medium text-muted-foreground block mb-1">WhatsApp</label><input value={form.whatsapp} onChange={e => set('whatsapp', e.target.value)} className={inputCls} /></div>
                 <div className="col-span-2"><label className="text-xs font-medium text-muted-foreground block mb-1">Classes Enrolled</label>
                   <div className="grid grid-cols-2 gap-1.5 mt-1">
-                    {classes.filter(c => c.status === 'Active').map(c => (
-                      <label key={c.id} className="flex items-center gap-2 p-2 border border-input rounded-lg cursor-pointer hover:bg-muted/50 text-xs">
-                        <input type="checkbox" checked={form.classIds.includes(c.id)} onChange={() => toggleClass(c.id)} className="rounded" />{c.name}
-                      </label>
-                    ))}
+                    {classes.filter(c => c.status === 'Active').map(c => {
+                      const teacher = teachers.find(t => t.id === c.teacherId);
+                      return (
+                        <label key={c.id} className="flex items-center gap-2 p-2 border border-input rounded-lg cursor-pointer hover:bg-muted/50 text-xs">
+                          <input type="checkbox" checked={form.classIds.includes(c.id)} onChange={() => toggleClass(c.id)} className="rounded" />
+                          <span>{c.name} · {teacher?.fullName || 'No teacher'}</span>
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
                 <div className="col-span-2"><label className="text-xs font-medium text-muted-foreground block mb-1">Notes</label><textarea value={form.notes || ''} onChange={e => set('notes', e.target.value)} className={inputCls} rows={2} /></div>
@@ -134,7 +141,7 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
             ) : (
               <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 {([
-                  ['Full Name', student.fullName], ['Initials', student.nameInitials], ['Date of Birth', formatDate(student.dateOfBirth)],
+                  ['Register No', student.registerNo || '-'], ['Full Name', student.fullName], ['Initials', student.nameInitials], ['Date of Birth', formatDate(student.dateOfBirth)],
                   ['Gender', student.gender], ['NIC', student.nic || '-'], ['Email', student.email || '-'],
                   ['School', student.school], ['Grade', student.grade], ['Medium', student.medium + ' Medium'],
                   ['Stream', student.stream || '-'], ['Address', student.address], ['District', student.district],
@@ -202,13 +209,17 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
         <div className="space-y-5">
           <div className="bg-card border border-border rounded-xl p-5">
             <h4 className="font-semibold text-foreground mb-3">Enrolled Classes</h4>
-            {studentClasses.length === 0 ? <p className="text-sm text-muted-foreground">Not enrolled.</p> : studentClasses.map(c => (
-              <div key={c.id} className="py-2.5 border-b border-border last:border-0">
-                <Link href={`/classes/${c.id}`} className="text-sm font-medium text-primary hover:underline">{c.name}</Link>
-                <p className="text-xs text-muted-foreground">{c.schedule.map(s => `${s.day} ${s.startTime}-${s.endTime}`).join(', ')}</p>
-                <p className="text-xs text-muted-foreground">{formatCurrency(c.monthlyFee)}/month</p>
-              </div>
-            ))}
+            {studentClasses.length === 0 ? <p className="text-sm text-muted-foreground">Not enrolled.</p> : studentClasses.map(c => {
+              const teacher = teachers.find(t => t.id === c.teacherId);
+              return (
+                <div key={c.id} className="py-2.5 border-b border-border last:border-0">
+                  <Link href={`/classes/${c.id}`} className="text-sm font-medium text-primary hover:underline">{c.name}</Link>
+                  <p className="text-xs text-muted-foreground">Teacher: {teacher?.fullName || '-'}</p>
+                  <p className="text-xs text-muted-foreground">{c.schedule.map(s => `${s.day} ${s.startTime}-${s.endTime}`).join(', ')}</p>
+                  <p className="text-xs text-muted-foreground">{formatCurrency(c.monthlyFee)}/month</p>
+                </div>
+              );
+            })}
           </div>
           <div className="bg-card border border-border rounded-xl p-5">
             <h4 className="font-semibold text-foreground mb-3">Attendance Summary</h4>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
-import { addStudent, getClasses } from "@/lib/storage";
+import { addStudent, getClasses, getTeachers } from "@/lib/storage";
 import { GRADES, STREAMS, SL_DISTRICTS, SL_PROVINCES } from "@/lib/utils";
 import type { Student } from "@/lib/types";
 
@@ -22,9 +22,10 @@ const inputCls = "w-full px-3 py-2 text-sm border border-input rounded-lg bg-bac
 export default function StudentNew() {
   const [, setLocation] = useLocation();
   const classes = getClasses();
+  const teachers = getTeachers();
 
   const [form, setForm] = useState({
-    fullName: '', nameInitials: '', dateOfBirth: '', gender: 'Male' as 'Male' | 'Female',
+    registerNo: '', fullName: '', nameInitials: '', dateOfBirth: '', gender: 'Male' as 'Male' | 'Female',
     nic: '', school: '', grade: '', medium: 'Sinhala' as 'Sinhala' | 'Tamil' | 'English',
     stream: '', address: '', district: 'Kandy', province: 'Central',
     guardianName: '', guardianRelationship: 'Father', guardianPhone: '',
@@ -46,6 +47,7 @@ export default function StudentNew() {
 
   const validate = () => {
     const e: Record<string, string> = {};
+    if (!form.registerNo.trim()) e.registerNo = 'Register number is required';
     if (!form.fullName.trim()) e.fullName = 'Full name is required';
     if (!form.school.trim()) e.school = 'School is required';
     if (!form.grade) e.grade = 'Grade is required';
@@ -82,6 +84,10 @@ export default function StudentNew() {
         <section className="bg-card border border-border rounded-xl p-5 space-y-4">
           <h3 className="font-semibold text-foreground">Personal Information</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Register Number" required>
+              <input data-testid="input-registerNo" value={form.registerNo} onChange={e => set('registerNo', e.target.value)} className={inputCls} placeholder="e.g. REG-001" />
+              {errors.registerNo && <p className="text-xs text-destructive mt-1">{errors.registerNo}</p>}
+            </Field>
             <Field label="Full Name" required>
               <input data-testid="input-fullName" value={form.fullName} onChange={e => set('fullName', e.target.value)} className={inputCls} placeholder="e.g. Kasun Malinda Perera" />
               {errors.fullName && <p className="text-xs text-destructive mt-1">{errors.fullName}</p>}
@@ -137,15 +143,19 @@ export default function StudentNew() {
           </div>
           <Field label="Enroll in Classes">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
-              {classes.filter(c => c.status === 'Active').map(c => (
-                <label key={c.id} className="flex items-center gap-2 p-2.5 border border-input rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
-                  <input type="checkbox" checked={form.classIds.includes(c.id)} onChange={() => toggleClass(c.id)} className="rounded" />
-                  <div>
-                    <div className="text-sm font-medium">{c.name}</div>
-                    <div className="text-xs text-muted-foreground">Rs. {c.monthlyFee.toLocaleString()} / month</div>
-                  </div>
-                </label>
-              ))}
+              {classes.filter(c => c.status === 'Active').map(c => {
+                const teacher = teachers.find(t => t.id === c.teacherId);
+                return (
+                  <label key={c.id} className="flex items-center gap-2 p-2.5 border border-input rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                    <input type="checkbox" checked={form.classIds.includes(c.id)} onChange={() => toggleClass(c.id)} className="rounded" />
+                    <div>
+                      <div className="text-sm font-medium">{c.name}</div>
+                      <div className="text-xs text-muted-foreground">{teacher?.fullName || 'No teacher'}</div>
+                      <div className="text-xs text-muted-foreground">Rs. {c.monthlyFee.toLocaleString()} / month</div>
+                    </div>
+                  </label>
+                );
+              })}
             </div>
           </Field>
         </section>
