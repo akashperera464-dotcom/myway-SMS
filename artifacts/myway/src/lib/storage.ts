@@ -1,4 +1,4 @@
-import type { Student, TuitionClass, Teacher, AttendanceRecord, Payment, ExamResult, Notice, InstituteSettings } from './types';
+import type { Student, TuitionClass, Teacher, AttendanceRecord, Payment, ExamResult, Notice, InstituteSettings, AppUser } from './types';
 import { generateId, getCurrentMonth } from './utils';
 
 const KEYS = {
@@ -10,6 +10,8 @@ const KEYS = {
   results: 'myway_results',
   notices: 'myway_notices',
   settings: 'myway_settings',
+  users: 'myway_users',
+  sessionUser: 'myway_session_user',
   initialized: 'myway_initialized',
 };
 
@@ -34,8 +36,6 @@ function getOne<T>(key: string): T | null {
 function saveOne<T>(key: string, val: T): void {
   localStorage.setItem(key, JSON.stringify(val));
 }
-
-// ─── SEED DATA ────────────────────────────────────────────────────────────────
 
 function seedData() {
   if (localStorage.getItem(KEYS.initialized)) return;
@@ -121,6 +121,14 @@ function seedData() {
     currentMonth: getCurrentMonth(),
   };
 
+  const users: AppUser[] = [
+    { id: 'u1', username: 'akash@myway.lk', fullName: 'Akash', role: 'Super Admin', status: 'Active', password: 'akash123' },
+    { id: 'u2', username: 'owner@myway.lk', fullName: 'Owner', role: 'Owner', status: 'Active', password: 'owner123' },
+    { id: 'u3', username: 'ops@myway.lk', fullName: 'Operations Staff', role: 'Operations Staff', status: 'Active', password: 'ops123' },
+    { id: 'u4', username: 'teacher@myway.lk', fullName: 'Teacher Demo', role: 'Teacher', status: 'Active', password: 'teacher123' },
+    { id: 'u5', username: 'student@myway.lk', fullName: 'Student Demo', role: 'Student', status: 'Active', password: 'student123' },
+  ];
+
   saveList(KEYS.teachers, teachers);
   saveList(KEYS.classes, classes);
   saveList(KEYS.students, students);
@@ -129,14 +137,12 @@ function seedData() {
   saveList(KEYS.results, results);
   saveList(KEYS.notices, notices);
   saveOne(KEYS.settings, settings);
+  saveList(KEYS.users, users);
   localStorage.setItem(KEYS.initialized, '1');
 }
 
-// ─── PUBLIC API ───────────────────────────────────────────────────────────────
-
 seedData();
 
-// Students
 export const getStudents = (): Student[] => getList<Student>(KEYS.students);
 export const getStudent = (id: string): Student | undefined => getList<Student>(KEYS.students).find(s => s.id === id);
 export const saveStudent = (s: Student): void => {
@@ -151,7 +157,6 @@ export const addStudent = (s: Omit<Student, 'id' | 'studentId'>): Student => {
   return newStudent;
 };
 
-// Classes
 export const getClasses = (): TuitionClass[] => getList<TuitionClass>(KEYS.classes);
 export const getClass = (id: string): TuitionClass | undefined => getList<TuitionClass>(KEYS.classes).find(c => c.id === id);
 export const saveClass = (c: TuitionClass): void => {
@@ -165,7 +170,6 @@ export const addClass = (c: Omit<TuitionClass, 'id'>): TuitionClass => {
   return newClass;
 };
 
-// Teachers
 export const getTeachers = (): Teacher[] => getList<Teacher>(KEYS.teachers);
 export const getTeacher = (id: string): Teacher | undefined => getList<Teacher>(KEYS.teachers).find(t => t.id === id);
 export const saveTeacher = (t: Teacher): void => {
@@ -179,7 +183,6 @@ export const addTeacher = (t: Omit<Teacher, 'id'>): Teacher => {
   return newTeacher;
 };
 
-// Attendance
 export const getAttendance = (): AttendanceRecord[] => getList<AttendanceRecord>(KEYS.attendance);
 export const getAttendanceForClass = (classId: string): AttendanceRecord[] => getList<AttendanceRecord>(KEYS.attendance).filter(a => a.classId === classId);
 export const getAttendanceForDate = (classId: string, date: string): AttendanceRecord | undefined => getList<AttendanceRecord>(KEYS.attendance).find(a => a.classId === classId && a.date === date);
@@ -188,7 +191,6 @@ export const saveAttendance = (a: AttendanceRecord): void => {
   saveList(KEYS.attendance, [...list, a]);
 };
 
-// Payments
 export const getPayments = (): Payment[] => getList<Payment>(KEYS.payments);
 export const getPaymentsForStudent = (studentId: string): Payment[] => getList<Payment>(KEYS.payments).filter(p => p.studentId === studentId);
 export const getPaymentsForClass = (classId: string): Payment[] => getList<Payment>(KEYS.payments).filter(p => p.classId === classId);
@@ -204,7 +206,6 @@ export const addPayment = (p: Omit<Payment, 'id'>): Payment => {
 };
 export const deletePayment = (id: string): void => saveList(KEYS.payments, getList<Payment>(KEYS.payments).filter(p => p.id !== id));
 
-// Results
 export const getResults = (): ExamResult[] => getList<ExamResult>(KEYS.results);
 export const getResultsForStudent = (studentId: string): ExamResult[] => getList<ExamResult>(KEYS.results).filter(r => r.studentId === studentId);
 export const getResultsForClass = (classId: string): ExamResult[] => getList<ExamResult>(KEYS.results).filter(r => r.classId === classId);
@@ -219,7 +220,6 @@ export const addResult = (r: Omit<ExamResult, 'id'>): ExamResult => {
 };
 export const deleteResult = (id: string): void => saveList(KEYS.results, getList<ExamResult>(KEYS.results).filter(r => r.id !== id));
 
-// Notices
 export const getNotices = (): Notice[] => getList<Notice>(KEYS.notices);
 export const saveNotice = (n: Notice): void => {
   const list = getList<Notice>(KEYS.notices).filter(x => x.id !== n.id);
@@ -232,7 +232,6 @@ export const addNotice = (n: Omit<Notice, 'id'>): Notice => {
 };
 export const deleteNotice = (id: string): void => saveList(KEYS.notices, getList<Notice>(KEYS.notices).filter(n => n.id !== id));
 
-// Settings
 export const getSettings = (): InstituteSettings => {
   return getOne<InstituteSettings>(KEYS.settings) ?? {
     name: 'MYWAY Educational Institute', address: '', phone: '', email: '',
@@ -241,7 +240,6 @@ export const getSettings = (): InstituteSettings => {
 };
 export const saveSettings = (s: InstituteSettings): void => saveOne(KEYS.settings, s);
 
-// Helpers for next receipt number
 export const getNextReceiptNo = (): string => {
   const payments = getList<Payment>(KEYS.payments);
   const year = new Date().getFullYear();
@@ -250,4 +248,22 @@ export const getNextReceiptNo = (): string => {
     return match ? Math.max(acc, parseInt(match[1])) : acc;
   }, 0);
   return `MYWAY-${year}-${String(max + 1).padStart(4, '0')}`;
+};
+
+export const getUsers = (): AppUser[] => getList<AppUser>(KEYS.users);
+export const getUser = (username: string, password: string): AppUser | undefined => getList<AppUser>(KEYS.users).find(u => u.username === username && u.password === password && u.status === 'Active');
+export const addUser = (u: Omit<AppUser, 'id'>): AppUser => {
+  const newUser: AppUser = { ...u, id: generateId() };
+  saveList(KEYS.users, [...getList<AppUser>(KEYS.users), newUser]);
+  return newUser;
+};
+export const saveUser = (u: AppUser): void => {
+  const list = getList<AppUser>(KEYS.users).filter(x => x.id !== u.id);
+  saveList(KEYS.users, [...list, u]);
+};
+export const deleteUser = (id: string): void => saveList(KEYS.users, getList<AppUser>(KEYS.users).filter(u => u.id !== id));
+export const getSessionUser = (): AppUser | null => getOne<AppUser>(KEYS.sessionUser);
+export const setSessionUser = (u: AppUser | null): void => {
+  if (u) saveOne(KEYS.sessionUser, u);
+  else localStorage.removeItem(KEYS.sessionUser);
 };

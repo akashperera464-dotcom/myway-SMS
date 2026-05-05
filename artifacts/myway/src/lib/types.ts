@@ -120,3 +120,12 @@ export interface InstituteSettings {
   currency: 'LKR';
   currentMonth: string;
 }
+
+export interface AppUser {
+  id: string;
+  username: string;
+  fullName: string;
+  role: 'Super Admin' | 'Owner' | 'Operations Staff' | 'Teacher' | 'Student';
+  status: 'Active' | 'Inactive';
+  password: string;
+}
