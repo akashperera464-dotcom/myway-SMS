@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Save, RotateCcw, Shield, UserPlus, Trash2 } from "lucide-react";
+import { Save, Shield, UserPlus, Trash2, Camera, ArrowLeft } from "lucide-react";
+import { Link } from "wouter";
 import { getSettings, saveSettings, getUsers, addUser, deleteUser, saveUser } from "@/lib/storage";
 import { getCurrentMonth } from "@/lib/utils";
 import type { InstituteSettings, AppUser } from "@/lib/types";
@@ -15,7 +16,6 @@ export default function Settings() {
 
   const [form, setForm] = useState<InstituteSettings>(getSettings());
   const [saved, setSaved] = useState(false);
-  const [showReset, setShowReset] = useState(false);
   const [users, setUsers] = useState<AppUser[]>(getUsers());
   const [newUser, setNewUser] = useState({ username: '', fullName: '', role: 'Teacher' as AppUser['role'], password: '', status: 'Active' as AppUser['status'] });
   const [addMsg, setAddMsg] = useState('');
@@ -34,11 +34,6 @@ export default function Settings() {
     setTimeout(() => setSaved(false), 3000);
   };
 
-  const handleReset = () => {
-    const keys = Object.keys(localStorage).filter(k => k.startsWith('myway_'));
-    keys.forEach(k => localStorage.removeItem(k));
-    window.location.reload();
-  };
 
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date();
@@ -67,16 +62,21 @@ export default function Settings() {
   };
 
   const handleDelete = (u: AppUser) => {
-    if (u.username === 'akash@myway.lk') return;
+    if (u.username === 'akashperera@myway.lk') return;
     deleteUser(u.id);
     reloadUsers();
   };
 
   return (
     <div className="max-w-4xl space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-foreground">Settings</h2>
-        <p className="text-sm text-muted-foreground">Manage institute information and user access</p>
+      <div className="flex items-center gap-3">
+        <Link href="/" className="p-2 rounded-xl hover:bg-muted transition-all border border-transparent hover:border-border">
+          <ArrowLeft className="w-5 h-5 text-muted-foreground" />
+        </Link>
+        <div>
+          <h2 className="text-xl font-bold text-foreground">Settings</h2>
+          <p className="text-sm text-muted-foreground">Manage institute information and user access</p>
+        </div>
       </div>
 
       {/* ── User Management (Super Admin only) ── */}
@@ -202,7 +202,25 @@ export default function Settings() {
       <form onSubmit={handleSave} className="space-y-5">
         <section className="bg-card border border-border rounded-xl p-5 space-y-4">
           <h3 className="font-semibold text-foreground">Institute Information</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          
+          <div className="flex items-center gap-6 pb-4">
+            <div className="relative group">
+              <div className="w-16 h-16 rounded-xl bg-primary/10 border-2 border-primary/20 flex items-center justify-center overflow-hidden shrink-0">
+                {form.logo ? (
+                  <img src={form.logo} alt="Institute Logo" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="font-bold text-primary">LOGO</span>
+                )}
+              </div>
+            </div>
+            <div className="flex-1">
+              <label className="text-sm font-medium text-foreground block mb-1">Institute Logo URL</label>
+              <input value={form.logo || ''} onChange={e => set('logo', e.target.value)} className={inputCls} placeholder="https://example.com/logo.png" />
+              <p className="text-xs text-muted-foreground mt-1">Paste an image URL from Google Drive, Cloudinary, etc.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-border pt-4">
             <div className="sm:col-span-2">
               <label className="text-xs font-medium text-muted-foreground block mb-1">Institute Name *</label>
               <input data-testid="settings-name" required value={form.name} onChange={e => set('name', e.target.value)} className={inputCls} />
@@ -253,31 +271,6 @@ export default function Settings() {
         </div>
       </form>
 
-      {/* ── Danger Zone ── */}
-      {isSuperAdmin && (
-        <section className="bg-destructive/5 border border-destructive/20 rounded-xl p-5">
-          <h3 className="font-semibold text-destructive mb-2">Danger Zone</h3>
-          <p className="text-sm text-muted-foreground mb-4">Reset all data to default sample data. This cannot be undone.</p>
-          <button data-testid="reset-data-btn" onClick={() => setShowReset(true)} className="flex items-center gap-2 px-4 py-2 border border-destructive text-destructive rounded-lg text-sm hover:bg-destructive/10 transition-colors">
-            <RotateCcw className="w-4 h-4" /> Reset All Data
-          </button>
-        </section>
-      )}
-
-      {showReset && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-xl p-6 max-w-sm w-full shadow-xl">
-            <h3 className="font-bold text-foreground text-lg mb-2">Reset All Data?</h3>
-            <p className="text-sm text-muted-foreground mb-5">
-              This will permanently delete all students, classes, payments, attendance records and reset to sample data. This cannot be undone.
-            </p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowReset(false)} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm hover:bg-muted">Cancel</button>
-              <button onClick={handleReset} className="flex-1 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg text-sm hover:opacity-90" data-testid="confirm-reset">Yes, Reset</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

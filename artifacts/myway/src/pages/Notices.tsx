@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Bell, Plus, Trash2, AlertCircle, Info, AlertTriangle } from "lucide-react";
+import { Bell, Plus, Trash2, AlertCircle, Info, AlertTriangle, ArrowLeft } from "lucide-react";
+import { Link } from "wouter";
 import { getNotices, addNotice, deleteNotice, getClasses } from "@/lib/storage";
 import { formatDate } from "@/lib/utils";
 import type { Notice } from "@/lib/types";
@@ -62,9 +63,14 @@ export default function Notices() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-foreground">Notice Board</h2>
-          <p className="text-sm text-muted-foreground">{notices.length} notices</p>
+        <div className="flex items-center gap-3">
+          <Link href="/" className="p-2 rounded-xl hover:bg-muted transition-all border border-transparent hover:border-border">
+            <ArrowLeft className="w-5 h-5 text-muted-foreground" />
+          </Link>
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Notice Board</h2>
+            <p className="text-sm text-muted-foreground">{notices.length} notices</p>
+          </div>
         </div>
         <button data-testid="add-notice-btn" onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm rounded-lg hover:opacity-90">
           <Plus className="w-4 h-4" /> Post Notice

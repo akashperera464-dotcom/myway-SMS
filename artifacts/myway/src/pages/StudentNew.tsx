@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
-import { addStudent, getClasses, getTeachers } from "@/lib/storage";
+import { addStudent, getClasses, getTeachers, getSubjects } from "@/lib/storage";
 import { GRADES, STREAMS, SL_DISTRICTS, SL_PROVINCES } from "@/lib/utils";
 import type { Student } from "@/lib/types";
 
@@ -23,6 +23,9 @@ export default function StudentNew() {
   const [, setLocation] = useLocation();
   const classes = getClasses();
   const teachers = getTeachers();
+  const subjects = getSubjects();
+  
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
 
   const [form, setForm] = useState({
     registerNo: '', fullName: '', nameInitials: '', dateOfBirth: '', gender: 'Male' as 'Male' | 'Female',
@@ -45,15 +48,18 @@ export default function StudentNew() {
     }));
   };
 
+  const toggleSubject = (subjectName: string) => {
+    setSelectedSubjects(prev => 
+      prev.includes(subjectName) ? prev.filter(s => s !== subjectName) : [...prev, subjectName]
+    );
+  };
+
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.registerNo.trim()) e.registerNo = 'Register number is required';
     if (!form.fullName.trim()) e.fullName = 'Full name is required';
     if (!form.school.trim()) e.school = 'School is required';
     if (!form.grade) e.grade = 'Grade is required';
-    if (!form.guardianName.trim()) e.guardianName = 'Guardian name is required';
-    if (!form.guardianPhone.trim()) e.guardianPhone = 'Guardian phone is required';
-    if (!form.whatsapp.trim()) e.whatsapp = 'WhatsApp number is required';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -108,7 +114,7 @@ export default function StudentNew() {
               <input value={form.nic} onChange={e => set('nic', e.target.value)} className={inputCls} placeholder="e.g. 200012345678" />
             </Field>
             <Field label="Email">
-              <input type="email" value={form.email} onChange={e => set('email', e.target.value)} className={inputCls} placeholder="optional" />
+              <input type="email" value={form.email} onChange={e => set('email', e.target.value)} className={inputCls} placeholder="e.g. kasun@example.com" />
             </Field>
           </div>
         </section>
@@ -141,9 +147,26 @@ export default function StudentNew() {
               </Field>
             )}
           </div>
+          
+          <Field label="Filter Classes by Subject">
+            <div className="flex flex-wrap gap-2 mt-2 mb-4">
+              {subjects.map(s => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => toggleSubject(s.name)}
+                  className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${selectedSubjects.includes(s.name) ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-foreground border-input hover:bg-muted'}`}
+                >
+                  {s.name}
+                </button>
+              ))}
+              {subjects.length === 0 && <span className="text-xs text-muted-foreground">No subjects found.</span>}
+            </div>
+          </Field>
+
           <Field label="Enroll in Classes">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
-              {classes.filter(c => c.status === 'Active').map(c => {
+              {classes.filter(c => c.status === 'Active' && (selectedSubjects.length === 0 || selectedSubjects.includes(c.subject))).map(c => {
                 const teacher = teachers.find(t => t.id === c.teacherId);
                 return (
                   <label key={c.id} className="flex items-center gap-2 p-2.5 border border-input rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
@@ -184,25 +207,23 @@ export default function StudentNew() {
         <section className="bg-card border border-border rounded-xl p-5 space-y-4">
           <h3 className="font-semibold text-foreground">Guardian / Parent Information</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Guardian Name" required>
+            <Field label="Guardian Name">
               <input value={form.guardianName} onChange={e => set('guardianName', e.target.value)} className={inputCls} placeholder="Parent/Guardian full name" />
-              {errors.guardianName && <p className="text-xs text-destructive mt-1">{errors.guardianName}</p>}
             </Field>
             <Field label="Relationship">
               <select value={form.guardianRelationship} onChange={e => set('guardianRelationship', e.target.value)} className={inputCls}>
+                <option value="">Select Relationship</option>
                 {['Father','Mother','Brother','Sister','Uncle','Aunt','Grandparent','Guardian'].map(r => <option key={r} value={r}>{r}</option>)}
               </select>
             </Field>
-            <Field label="Guardian Phone" required>
+            <Field label="Guardian Phone">
               <input value={form.guardianPhone} onChange={e => set('guardianPhone', e.target.value)} className={inputCls} placeholder="07X XXXXXXX" />
-              {errors.guardianPhone && <p className="text-xs text-destructive mt-1">{errors.guardianPhone}</p>}
             </Field>
-            <Field label="WhatsApp Number" required>
+            <Field label="WhatsApp Number">
               <input value={form.whatsapp} onChange={e => set('whatsapp', e.target.value)} className={inputCls} placeholder="07X XXXXXXX" />
-              {errors.whatsapp && <p className="text-xs text-destructive mt-1">{errors.whatsapp}</p>}
             </Field>
             <Field label="Student Phone">
-              <input value={form.studentPhone} onChange={e => set('studentPhone', e.target.value)} className={inputCls} placeholder="optional" />
+              <input value={form.studentPhone} onChange={e => set('studentPhone', e.target.value)} className={inputCls} placeholder="07X XXXXXXX" />
             </Field>
           </div>
         </section>

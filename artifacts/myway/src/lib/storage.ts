@@ -1,4 +1,4 @@
-import type { Student, TuitionClass, Teacher, AttendanceRecord, Payment, ExamResult, Notice, InstituteSettings, AppUser } from './types';
+import type { Student, TuitionClass, Teacher, AttendanceRecord, Payment, ExamResult, Notice, InstituteSettings, AppUser, Subject, TeacherPayment, Expense } from './types';
 import { generateId, getCurrentMonth } from './utils';
 
 const KEYS = {
@@ -13,6 +13,9 @@ const KEYS = {
   users: 'myway_users',
   sessionUser: 'myway_session_user',
   initialized: 'myway_initialized',
+  subjects: 'myway_subjects',
+  teacherPayments: 'myway_teacher_payments',
+  expenses: 'myway_expenses',
 };
 
 function getList<T>(key: string): T[] {
@@ -45,7 +48,7 @@ function ensureUsers() {
   const existing = getList<AppUser>(KEYS.users);
   if (existing.length === 0) {
     const users: AppUser[] = [
-      { id: 'u1', username: 'akash@myway.lk', fullName: 'Akash', role: 'Super Admin', status: 'Active', password: 'akash123' },
+      { id: 'u1', username: 'akashperera@myway.lk', fullName: 'Akash Perera', role: 'Super Admin', status: 'Active', password: 'akash123*#' },
       { id: 'u2', username: 'owner@myway.lk', fullName: 'Owner', role: 'Owner', status: 'Active', password: 'owner123' },
       { id: 'u3', username: 'ops@myway.lk', fullName: 'Operations Staff', role: 'Operations Staff', status: 'Active', password: 'ops123' },
       { id: 'u4', username: 'teacher@myway.lk', fullName: 'Teacher Demo', role: 'Teacher', status: 'Active', password: 'teacher123' },
@@ -144,11 +147,29 @@ function seedData() {
   };
 
   const users: AppUser[] = [
-    { id: 'u1', username: 'akash@myway.lk', fullName: 'Akash', role: 'Super Admin', status: 'Active', password: 'akash123' },
+    { id: 'u1', username: 'akashperera@myway.lk', fullName: 'Akash Perera', role: 'Super Admin', status: 'Active', password: 'akash123*#' },
     { id: 'u2', username: 'owner@myway.lk', fullName: 'Owner', role: 'Owner', status: 'Active', password: 'owner123' },
     { id: 'u3', username: 'ops@myway.lk', fullName: 'Operations Staff', role: 'Operations Staff', status: 'Active', password: 'ops123' },
     { id: 'u4', username: 'teacher@myway.lk', fullName: 'Teacher Demo', role: 'Teacher', status: 'Active', password: 'teacher123' },
     { id: 'u5', username: 'student@myway.lk', fullName: 'Student Demo', role: 'Student', status: 'Active', password: 'student123' },
+  ];
+
+  const subjects: Subject[] = [
+    { id: 'sub1', code: 'MATH-11', name: 'Mathematics', category: 'Core', description: 'Algebra, geometry, and calculus for O/L students.', gradeLevel: 'Grade 11 (O/L)', medium: 'Sinhala', teacherId: 't1', classIds: ['c1'], creditHours: 4, syllabus: 'Sri Lanka O/L Mathematics Syllabus 2025', status: 'Active', createdAt: '2024-01-01' },
+    { id: 'sub2', code: 'SCI-10', name: 'Science', category: 'Core', description: 'Integrated science covering physics, chemistry, and biology basics.', gradeLevel: 'Grade 10', medium: 'Sinhala', teacherId: 't2', classIds: ['c2'], creditHours: 4, syllabus: 'Sri Lanka Grade 10 Science Syllabus', status: 'Active', createdAt: '2024-01-01' },
+    { id: 'sub3', code: 'CMATH-13', name: 'Combined Mathematics', category: 'Core', description: 'Advanced mathematics for A/L Science stream students.', gradeLevel: 'Grade 13 (A/L Year 2)', medium: 'Sinhala', teacherId: 't1', classIds: ['c3'], creditHours: 6, syllabus: 'Sri Lanka A/L Combined Maths Syllabus', status: 'Active', createdAt: '2024-01-01' },
+    { id: 'sub4', code: 'ENG-09', name: 'English', category: 'Core', description: 'Spoken and written English communication for secondary students.', gradeLevel: 'Grade 9', medium: 'English', teacherId: 't3', classIds: ['c4'], creditHours: 3, syllabus: 'Sri Lanka English Language Syllabus', status: 'Active', createdAt: '2024-01-01' },
+    { id: 'sub5', code: 'CHEM-AL', name: 'Chemistry', category: 'Optional', description: 'A/L Chemistry covering organic and inorganic chemistry.', gradeLevel: 'Grade 12 (A/L Year 1)', medium: 'Sinhala', teacherId: 't2', classIds: [], creditHours: 5, status: 'Active', createdAt: '2024-01-01' },
+    { id: 'sub6', code: 'ICT-10', name: 'ICT', category: 'Elective', description: 'Information and communication technology fundamentals.', gradeLevel: 'Grade 10', medium: 'English', classIds: [], creditHours: 2, status: 'Inactive', createdAt: '2024-01-01' },
+  ];
+
+  const teacherPayments: TeacherPayment[] = [
+    { id: 'tp1', teacherId: 't1', month: m(1), amount: 80000, paidDate: new Date(today.getFullYear(), today.getMonth() - 1, 28).toISOString().slice(0, 10), method: 'Bank Transfer', referenceNo: 'TR-1234' },
+  ];
+
+  const expenses: Expense[] = [
+    { id: 'e1', category: 'Electricity', amount: 15000, date: dateStr(15), description: 'Monthly electricity bill', recordedBy: 'Admin' },
+    { id: 'e2', category: 'Rent', amount: 50000, date: dateStr(25), description: 'Building rent', recordedBy: 'Admin' },
   ];
 
   saveList(KEYS.teachers, teachers);
@@ -160,6 +181,9 @@ function seedData() {
   saveList(KEYS.notices, notices);
   saveOne(KEYS.settings, settings);
   saveList(KEYS.users, users);
+  saveList(KEYS.subjects, subjects);
+  saveList(KEYS.teacherPayments, teacherPayments);
+  saveList(KEYS.expenses, expenses);
   localStorage.setItem(KEYS.initialized, '1');
 }
 
@@ -289,3 +313,40 @@ export const setSessionUser = (u: AppUser | null): void => {
   if (u) saveOne(KEYS.sessionUser, u);
   else localStorage.removeItem(KEYS.sessionUser);
 };
+
+export const getSubjects = (): Subject[] => getList<Subject>(KEYS.subjects);
+export const getSubject = (id: string): Subject | undefined => getList<Subject>(KEYS.subjects).find(s => s.id === id);
+export const saveSubject = (s: Subject): void => {
+  const list = getList<Subject>(KEYS.subjects).filter(x => x.id !== s.id);
+  saveList(KEYS.subjects, [...list, s]);
+};
+export const addSubject = (s: Omit<Subject, 'id'>): Subject => {
+  const newSubject: Subject = { ...s, id: generateId() };
+  saveList(KEYS.subjects, [...getList<Subject>(KEYS.subjects), newSubject]);
+  return newSubject;
+};
+export const deleteSubject = (id: string): void => saveList(KEYS.subjects, getList<Subject>(KEYS.subjects).filter(s => s.id !== id));
+
+export const getTeacherPayments = (): TeacherPayment[] => getList<TeacherPayment>(KEYS.teacherPayments);
+export const saveTeacherPayment = (tp: TeacherPayment): void => {
+  const list = getList<TeacherPayment>(KEYS.teacherPayments).filter(x => x.id !== tp.id);
+  saveList(KEYS.teacherPayments, [...list, tp]);
+};
+export const addTeacherPayment = (tp: Omit<TeacherPayment, 'id'>): TeacherPayment => {
+  const newTp: TeacherPayment = { ...tp, id: generateId() };
+  saveList(KEYS.teacherPayments, [...getList<TeacherPayment>(KEYS.teacherPayments), newTp]);
+  return newTp;
+};
+export const deleteTeacherPayment = (id: string): void => saveList(KEYS.teacherPayments, getList<TeacherPayment>(KEYS.teacherPayments).filter(tp => tp.id !== id));
+
+export const getExpenses = (): Expense[] => getList<Expense>(KEYS.expenses);
+export const saveExpense = (e: Expense): void => {
+  const list = getList<Expense>(KEYS.expenses).filter(x => x.id !== e.id);
+  saveList(KEYS.expenses, [...list, e]);
+};
+export const addExpense = (e: Omit<Expense, 'id'>): Expense => {
+  const newE: Expense = { ...e, id: generateId() };
+  saveList(KEYS.expenses, [...getList<Expense>(KEYS.expenses), newE]);
+  return newE;
+};
+export const deleteExpense = (id: string): void => saveList(KEYS.expenses, getList<Expense>(KEYS.expenses).filter(e => e.id !== id));

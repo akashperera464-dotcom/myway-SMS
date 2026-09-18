@@ -2,6 +2,8 @@ import { useState } from "react";
 import { getClasses, getStudents, getAttendanceForDate, saveAttendance } from "@/lib/storage";
 import { formatDate, generateId } from "@/lib/utils";
 import type { AttendanceRecord } from "@/lib/types";
+import { ArrowLeft } from "lucide-react";
+import { Link } from "wouter";
 
 const STATUS_OPTIONS = ['Present', 'Absent', 'Late', 'Excused'] as const;
 type AttStatus = typeof STATUS_OPTIONS[number];
@@ -87,9 +89,14 @@ export default function Attendance() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-bold text-foreground">Attendance</h2>
-        <p className="text-sm text-muted-foreground">Mark and view class attendance</p>
+      <div className="flex items-center gap-3">
+        <Link href="/" className="p-2 rounded-xl hover:bg-muted transition-all border border-transparent hover:border-border">
+          <ArrowLeft className="w-5 h-5 text-muted-foreground" />
+        </Link>
+        <div>
+          <h2 className="text-xl font-bold text-foreground">Attendance</h2>
+          <p className="text-sm text-muted-foreground">Mark and view class attendance</p>
+        </div>
       </div>
 
       {/* Selectors */}

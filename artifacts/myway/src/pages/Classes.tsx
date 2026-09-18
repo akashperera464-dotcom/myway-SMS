@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { Plus, BookOpen, Users, Clock } from "lucide-react";
-import { getClasses, getTeachers, addClass, deleteClass } from "@/lib/storage";
-import { formatCurrency, SUBJECTS, GRADES, DAYS_OF_WEEK } from "@/lib/utils";
+import { Plus, BookOpen, Users, Clock, ArrowLeft } from "lucide-react";
+import { getClasses, getTeachers, getSubjects, addClass, deleteClass } from "@/lib/storage";
+import { formatCurrency, GRADES, DAYS_OF_WEEK } from "@/lib/utils";
 
 const inputCls = "w-full px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring";
 
@@ -27,6 +27,12 @@ export default function Classes() {
 
   const classes = getClasses();
   const teachers = getTeachers();
+  const subjects = getSubjects();
+
+  // Filter teachers based on selected subject (if any)
+  const availableTeachers = form.subject 
+    ? teachers.filter(t => t.subjects.includes(form.subject))
+    : teachers;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,9 +51,14 @@ export default function Classes() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-foreground">Classes</h2>
-          <p className="text-sm text-muted-foreground">{classes.length} classes total</p>
+        <div className="flex items-center gap-3">
+          <Link href="/" className="p-2 rounded-xl hover:bg-muted transition-all border border-transparent hover:border-border">
+            <ArrowLeft className="w-5 h-5 text-muted-foreground" />
+          </Link>
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Classes</h2>
+            <p className="text-sm text-muted-foreground">{classes.length} classes total</p>
+          </div>
         </div>
         <button data-testid="add-class-btn" onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm rounded-lg hover:opacity-90">
           <Plus className="w-4 h-4" /> Add Class
@@ -94,10 +105,10 @@ export default function Classes() {
             <form onSubmit={handleSubmit} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2"><label className="text-xs font-medium text-muted-foreground block mb-1">Class Name *</label><input required value={form.name} onChange={e => set('name', e.target.value)} className={inputCls} placeholder="e.g. Grade 11 - Mathematics" /></div>
-                <div><label className="text-xs font-medium text-muted-foreground block mb-1">Subject *</label><select required value={form.subject} onChange={e => set('subject', e.target.value)} className={inputCls}><option value="">Select</option>{SUBJECTS.map(s => <option key={s}>{s}</option>)}</select></div>
+                <div><label className="text-xs font-medium text-muted-foreground block mb-1">Subject *</label><select required value={form.subject} onChange={e => set('subject', e.target.value)} className={inputCls}><option value="">Select Subject</option>{subjects.map(s => <option key={s.id} value={s.name}>{s.name} ({s.code})</option>)}</select></div>
                 <div><label className="text-xs font-medium text-muted-foreground block mb-1">Grade *</label><select required value={form.grade} onChange={e => set('grade', e.target.value)} className={inputCls}><option value="">Select</option>{GRADES.map(g => <option key={g}>{g}</option>)}</select></div>
                 <div><label className="text-xs font-medium text-muted-foreground block mb-1">Medium</label><select value={form.medium} onChange={e => set('medium', e.target.value as 'Sinhala'|'Tamil'|'English')} className={inputCls}><option>Sinhala</option><option>Tamil</option><option>English</option></select></div>
-                <div><label className="text-xs font-medium text-muted-foreground block mb-1">Teacher</label><select value={form.teacherId} onChange={e => set('teacherId', e.target.value)} className={inputCls}><option value="">Select Teacher</option>{teachers.map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}</select></div>
+                <div><label className="text-xs font-medium text-muted-foreground block mb-1">Teacher</label><select value={form.teacherId} onChange={e => set('teacherId', e.target.value)} className={inputCls}><option value="">Select Teacher</option>{availableTeachers.map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}</select></div>
                 <div><label className="text-xs font-medium text-muted-foreground block mb-1">Room</label><input value={form.room} onChange={e => set('room', e.target.value)} className={inputCls} placeholder="e.g. Room A" /></div>
                 <div><label className="text-xs font-medium text-muted-foreground block mb-1">Monthly Fee (LKR)</label><input type="number" value={form.monthlyFee || ''} onChange={e => set('monthlyFee', e.target.value)} className={inputCls} /></div>
                 <div><label className="text-xs font-medium text-muted-foreground block mb-1">Max Students</label><input type="number" value={form.maxStudents} onChange={e => set('maxStudents', e.target.value)} className={inputCls} /></div>

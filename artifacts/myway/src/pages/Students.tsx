@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, ArrowLeft } from "lucide-react";
 import { getStudents, getClasses, deleteStudent } from "@/lib/storage";
 import { formatCurrency, GRADES } from "@/lib/utils";
 import type { Student } from "@/lib/types";
+import { useAuth } from "@/App";
 
 const STATUS_COLORS: Record<string, string> = {
   Active: "bg-green-100 text-green-700",
@@ -13,6 +14,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function Students() {
+  const { user } = useAuth();
+  const canEdit = user?.role === 'Super Admin' || user?.role === 'Owner' || user?.role === 'Operations Staff';
   const [search, setSearch] = useState("");
   const [filterGrade, setFilterGrade] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -48,13 +51,20 @@ export default function Students() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-foreground">Students</h2>
-          <p className="text-sm text-muted-foreground">{allStudents.length} students registered</p>
+        <div className="flex items-center gap-3">
+          <Link href="/" className="p-2 rounded-xl hover:bg-muted transition-all border border-transparent hover:border-border">
+            <ArrowLeft className="w-5 h-5 text-muted-foreground" />
+          </Link>
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Students</h2>
+            <p className="text-sm text-muted-foreground">{allStudents.length} students registered</p>
+          </div>
         </div>
-        <Link href="/students/new" className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm rounded-lg hover:opacity-90 transition-opacity" data-testid="add-student-btn">
-          <Plus className="w-4 h-4" /> Add Student
-        </Link>
+        {canEdit && (
+          <Link href="/students/new" className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm rounded-lg hover:opacity-90 transition-opacity" data-testid="add-student-btn">
+            <Plus className="w-4 h-4" /> Add Student
+          </Link>
+        )}
       </div>
 
       <div className="bg-card border border-border rounded-xl p-4 flex flex-wrap gap-3">
@@ -137,7 +147,9 @@ export default function Students() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <Link href={`/students/${s.id}`} className="text-xs text-primary hover:underline" data-testid={`view-student-${s.id}`}>View</Link>
-                        <button onClick={() => setDeleteId(s.id)} className="text-xs text-destructive hover:underline" data-testid={`delete-student-${s.id}`}>Delete</button>
+                        {canEdit && (
+                          <button onClick={() => setDeleteId(s.id)} className="text-xs text-destructive hover:underline" data-testid={`delete-student-${s.id}`}>Delete</button>
+                        )}
                       </div>
                     </td>
                   </tr>

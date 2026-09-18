@@ -1,3 +1,23 @@
+export interface TeacherPayment {
+  id: string;
+  teacherId: string;
+  month: string;
+  amount: number;
+  paidDate: string;
+  method: 'Cash' | 'Bank Transfer' | 'Cheque';
+  referenceNo?: string;
+  notes?: string;
+}
+
+export interface Expense {
+  id: string;
+  category: 'Electricity' | 'Water' | 'Rent' | 'Maintenance' | 'Internet' | 'Other';
+  amount: number;
+  date: string;
+  description: string;
+  recordedBy: string;
+}
+
 export interface Student {
   id: string;
   studentId: string;
@@ -111,6 +131,22 @@ export interface Notice {
   createdBy: string;
 }
 
+export interface Subject {
+  id: string;
+  code: string;
+  name: string;
+  category: 'Core' | 'Optional' | 'Elective' | 'Extra-Curricular';
+  description?: string;
+  gradeLevel: string;
+  medium: 'Sinhala' | 'Tamil' | 'English' | 'All';
+  teacherId?: string;
+  classIds: string[];
+  creditHours?: number;
+  syllabus?: string;
+  status: 'Active' | 'Inactive';
+  createdAt: string;
+}
+
 export interface InstituteSettings {
   name: string;
   address: string;
@@ -129,4 +165,5 @@ export interface AppUser {
   role: 'Super Admin' | 'Owner' | 'Operations Staff' | 'Teacher' | 'Student';
   status: 'Active' | 'Inactive';
   password: string;
+  photo?: string;
 }

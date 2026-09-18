@@ -1,18 +1,22 @@
 import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
-import { getStudents, getClasses, getPayments, getAttendance, getTeachers } from "@/lib/storage";
+import { getStudents, getClasses, getPayments, getAttendance, getTeachers, getTeacherPayments, getExpenses } from "@/lib/storage";
 import { formatCurrency, formatMonth, getGrade } from "@/lib/utils";
+import { ArrowLeft } from "lucide-react";
+import { Link } from "wouter";
 
 const COLORS = ['#1a3a6b','#1a8075','#f97316','#22c55e','#a855f7'];
 
 export default function Reports() {
-  const [activeTab, setActiveTab] = useState<'fees' | 'attendance' | 'students'>('fees');
+  const [activeTab, setActiveTab] = useState<'fees' | 'attendance' | 'students' | 'pnl'>('fees');
 
   const students = getStudents();
   const classes = getClasses();
   const payments = getPayments();
   const attendance = getAttendance();
   const teachers = getTeachers();
+  const teacherPayments = getTeacherPayments();
+  const expensesList = getExpenses();
 
   // Fee Report - last 6 months
   const feeMonths = Array.from({ length: 6 }, (_, i) => {
@@ -56,6 +60,13 @@ export default function Reports() {
   const mediumData = Object.entries(mediumCount).map(([medium, value]) => ({ name: medium, value }));
   const statusData = Object.entries(statusCount).filter(([,v]) => v > 0).map(([name, value]) => ({ name, value }));
 
+  // Profit & Loss Report Data
+  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const currentMonthIncome = payments.filter(p => p.status === 'Paid' && p.paidDate.startsWith(currentMonth)).reduce((s, p) => s + p.amount, 0);
+  const currentMonthSalaries = teacherPayments.filter(p => p.paidDate.startsWith(currentMonth)).reduce((s, p) => s + p.amount, 0);
+  const currentMonthExpenses = expensesList.filter(e => e.date.startsWith(currentMonth)).reduce((s, e) => s + e.amount, 0);
+  const netProfit = currentMonthIncome - currentMonthSalaries - currentMonthExpenses;
+
   const handlePrint = () => window.print();
 
   return (
@@ -67,9 +78,14 @@ export default function Reports() {
       </div>
 
       <div className="flex items-center justify-between print:hidden">
-        <div>
-          <h2 className="text-xl font-bold text-foreground">Reports</h2>
-          <p className="text-sm text-muted-foreground">Analytics and summaries</p>
+        <div className="flex items-center gap-3">
+          <Link href="/" className="p-2 rounded-xl hover:bg-muted transition-all border border-transparent hover:border-border">
+            <ArrowLeft className="w-5 h-5 text-muted-foreground" />
+          </Link>
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Reports</h2>
+            <p className="text-sm text-muted-foreground">Analytics and summaries</p>
+          </div>
         </div>
         <button onClick={handlePrint} className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-muted transition-colors" data-testid="print-report-btn">
           Print Report
@@ -98,8 +114,8 @@ export default function Reports() {
 
       {/* Tabs */}
       <div className="flex gap-2 print:hidden">
-        {[['fees', 'Fee Collection'], ['attendance', 'Attendance'], ['students', 'Students']].map(([k, l]) => (
-          <button key={k} onClick={() => setActiveTab(k as 'fees'|'attendance'|'students')}
+        {[['fees', 'Fee Collection'], ['attendance', 'Attendance'], ['students', 'Students'], ['pnl', 'Profit & Loss']].map(([k, l]) => (
+          <button key={k} onClick={() => setActiveTab(k as 'fees'|'attendance'|'students'|'pnl')}
             className={`px-4 py-2 text-sm rounded-lg border transition-colors ${activeTab === k ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-muted'}`}
             data-testid={`tab-${k}`}>{l}</button>
         ))}
@@ -264,6 +280,57 @@ export default function Reports() {
                 <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4,4,0,0]} />
               </BarChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* Profit & Loss Report */}
+      {activeTab === 'pnl' && (
+        <div className="space-y-4">
+          <div className="bg-card border border-border rounded-xl p-5">
+            <h3 className="font-semibold text-foreground mb-4">Profit & Loss ({new Date().toLocaleString('default', { month: 'long', year: 'numeric' })})</h3>
+            
+            <div className="space-y-4">
+              <div className="flex justify-between items-center py-2 border-b border-border">
+                <span className="text-muted-foreground">Total Income (Student Fees)</span>
+                <span className="font-bold text-green-500">{formatCurrency(currentMonthIncome)}</span>
+              </div>
+              
+              <div className="flex justify-between items-center py-2 border-b border-border">
+                <span className="text-muted-foreground">Teacher Salaries Paid</span>
+                <span className="font-bold text-red-400">- {formatCurrency(currentMonthSalaries)}</span>
+              </div>
+              
+              <div className="flex justify-between items-center py-2 border-b border-border">
+                <span className="text-muted-foreground">Other Expenses (Rent, Utilities, etc.)</span>
+                <span className="font-bold text-red-400">- {formatCurrency(currentMonthExpenses)}</span>
+              </div>
+              
+              <div className="flex justify-between items-center pt-4 pb-2">
+                <span className="font-bold text-lg text-foreground">Net Profit / Loss</span>
+                <span className={`font-bold text-xl ${netProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {formatCurrency(netProfit)}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-card border border-border rounded-xl p-5">
+            <h3 className="font-semibold text-foreground mb-4">Expense Breakdown</h3>
+            <div className="space-y-3">
+              {expensesList.filter(e => e.date.startsWith(currentMonth)).map(e => (
+                <div key={e.id} className="flex justify-between items-center text-sm">
+                  <div>
+                    <span className="font-medium text-foreground">{e.category}</span>
+                    <span className="text-muted-foreground ml-2">({e.description})</span>
+                  </div>
+                  <span className="font-semibold">{formatCurrency(e.amount)}</span>
+                </div>
+              ))}
+              {expensesList.filter(e => e.date.startsWith(currentMonth)).length === 0 && (
+                <div className="text-sm text-muted-foreground text-center py-4">No expenses recorded for this month.</div>
+              )}
+            </div>
           </div>
         </div>
       )}

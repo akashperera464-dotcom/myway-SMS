@@ -2,6 +2,8 @@ import { useState } from "react";
 import { getResults, getStudents, getClasses, addResult, deleteResult } from "@/lib/storage";
 import { formatDate, getGrade, getGradeColor } from "@/lib/utils";
 import type { ExamResult } from "@/lib/types";
+import { ArrowLeft } from "lucide-react";
+import { Link } from "wouter";
 
 const inputCls = "w-full px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring";
 
@@ -86,9 +88,14 @@ export default function Results() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-foreground">Exam Results</h2>
-          <p className="text-sm text-muted-foreground">Add and view student exam results</p>
+        <div className="flex items-center gap-3">
+          <Link href="/" className="p-2 rounded-xl hover:bg-muted transition-all border border-transparent hover:border-border">
+            <ArrowLeft className="w-5 h-5 text-muted-foreground" />
+          </Link>
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Exam Results</h2>
+            <p className="text-sm text-muted-foreground">Add and view student exam results</p>
+          </div>
         </div>
         <button data-testid="add-results-btn" onClick={() => setShowForm(true)} className="px-4 py-2 bg-primary text-primary-foreground text-sm rounded-lg hover:opacity-90">
           + Add Results

@@ -2,6 +2,8 @@ import { useState } from "react";
 import { getStudents, getClasses, getPayments, addPayment, savePayment, getNextReceiptNo } from "@/lib/storage";
 import { formatCurrency, formatDate, formatMonth, getCurrentMonth } from "@/lib/utils";
 import type { Payment } from "@/lib/types";
+import { ArrowLeft } from "lucide-react";
+import { Link } from "wouter";
 
 const STATUS_COLORS: Record<string, string> = {
   Paid: 'bg-green-100 text-green-700',
@@ -114,9 +116,14 @@ export default function Payments() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-foreground">Fee Payments</h2>
-          <p className="text-sm text-muted-foreground">Track and manage student fee payments</p>
+        <div className="flex items-center gap-3">
+          <Link href="/" className="p-2 rounded-xl hover:bg-muted transition-all border border-transparent hover:border-border">
+            <ArrowLeft className="w-5 h-5 text-muted-foreground" />
+          </Link>
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Fee Payments</h2>
+            <p className="text-sm text-muted-foreground">Track and manage student fee payments</p>
+          </div>
         </div>
         <button data-testid="add-payment-btn" onClick={() => setShowForm(true)} className="px-4 py-2 bg-primary text-primary-foreground text-sm rounded-lg hover:opacity-90">
           + Record Payment
