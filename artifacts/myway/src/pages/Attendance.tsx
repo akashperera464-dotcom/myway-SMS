@@ -1,22 +1,23 @@
-import { useState } from "react";
-import { getClasses, getStudents, getAttendanceForDate, saveAttendance } from "@/lib/storage";
+import { useState, useEffect } from "react";
+import { getClasses, getStudents, getAttendanceForDate, saveAttendance, useStorageSync } from "@/lib/storage";
 import { formatDate, generateId } from "@/lib/utils";
 import type { AttendanceRecord } from "@/lib/types";
-import { ArrowLeft, QrCode, ListFilter } from "lucide-react";
+import { ArrowLeft, QrCode, ListFilter, CheckCircle2, Save } from "lucide-react";
 import { Link } from "wouter";
-import QrAttendanceScanner from "@/components/QrAttendanceScanner";
+import QrAttendanceScanner, { type AttStatus } from "@/components/QrAttendanceScanner";
 
 const STATUS_OPTIONS = ['Present', 'Absent', 'Late', 'Excused'] as const;
-type AttStatus = typeof STATUS_OPTIONS[number];
 
 const STATUS_COLORS: Record<AttStatus, string> = {
-  Present: 'bg-green-100 text-green-700 border-green-200',
-  Absent: 'bg-red-100 text-red-700 border-red-200',
-  Late: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-  Excused: 'bg-blue-100 text-blue-700 border-blue-200',
+  Present: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-800',
+  Absent: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800',
+  Late: 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-800',
+  Excused: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
 };
 
 export default function Attendance() {
+  useStorageSync(['myway_attendance', 'myway_classes', 'myway_students']);
+
   const today = new Date().toISOString().slice(0, 10);
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedDate, setSelectedDate] = useState(today);
@@ -31,6 +32,21 @@ export default function Attendance() {
   const cls = classes.find(c => c.id === selectedClass);
   const enrolledStudents = cls ? allStudents.filter(s => cls.enrolledStudents.includes(s.id) && s.status === 'Active') : [];
 
+  const loadAttendance = (classId: string, date: string) => {
+    const existing = getAttendanceForDate(classId, date);
+    if (existing) {
+      const map: Record<string, AttStatus> = {};
+      existing.records.forEach(r => { map[r.studentId] = r.status as AttStatus; });
+      setRecords(map);
+    } else {
+      const targetCls = classes.find(c => c.id === classId);
+      const students = targetCls ? allStudents.filter(s => targetCls.enrolledStudents.includes(s.id) && s.status === 'Active') : [];
+      const map: Record<string, AttStatus> = {};
+      students.forEach(s => { map[s.id] = 'Present'; });
+      setRecords(map);
+    }
+  };
+
   const handleClassChange = (classId: string) => {
     setSelectedClass(classId);
     setSaved(false);
@@ -43,19 +59,24 @@ export default function Attendance() {
     if (selectedClass) loadAttendance(selectedClass, date);
   };
 
-  const loadAttendance = (classId: string, date: string) => {
-    const existing = getAttendanceForDate(classId, date);
-    if (existing) {
-      const map: Record<string, AttStatus> = {};
-      existing.records.forEach(r => { map[r.studentId] = r.status as AttStatus; });
-      setRecords(map);
-    } else {
-      const cls = classes.find(c => c.id === classId);
-      const students = cls ? allStudents.filter(s => cls.enrolledStudents.includes(s.id) && s.status === 'Active') : [];
-      const map: Record<string, AttStatus> = {};
-      students.forEach(s => { map[s.id] = 'Present'; });
-      setRecords(map);
-    }
+  // Immediate save on QR scan or status toggle
+  const handleMarkAndSave = (studentId: string, status: AttStatus) => {
+    setRecords(prev => {
+      const updated = { ...prev, [studentId]: status };
+      if (selectedClass && selectedDate) {
+        const existing = getAttendanceForDate(selectedClass, selectedDate);
+        const record: AttendanceRecord = {
+          id: existing?.id || generateId(),
+          classId: selectedClass,
+          date: selectedDate,
+          records: Object.entries(updated).map(([sId, st]) => ({ studentId: sId, status: st })),
+          markedBy: 'Admin (QR Scanner)',
+        };
+        saveAttendance(record);
+      }
+      return updated;
+    });
+    setSaved(true);
   };
 
   const setStatus = (studentId: string, status: AttStatus) => {
@@ -88,17 +109,31 @@ export default function Attendance() {
   const presentCount = Object.values(records).filter(s => s === 'Present').length;
   const absentCount = Object.values(records).filter(s => s === 'Absent').length;
   const lateCount = Object.values(records).filter(s => s === 'Late').length;
+  const excusedCount = Object.values(records).filter(s => s === 'Excused').length;
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <Link href="/" className="p-2 rounded-xl hover:bg-muted transition-all border border-transparent hover:border-border">
-          <ArrowLeft className="w-5 h-5 text-muted-foreground" />
-        </Link>
-        <div>
-          <h2 className="text-xl font-bold text-foreground">Attendance</h2>
-          <p className="text-sm text-muted-foreground">Mark and view class attendance</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Link href="/" className="p-2 rounded-xl hover:bg-muted transition-all border border-transparent hover:border-border">
+            <ArrowLeft className="w-5 h-5 text-muted-foreground" />
+          </Link>
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Attendance</h2>
+            <p className="text-sm text-muted-foreground">Mark by QR Code or manual roster with live cloud sync</p>
+          </div>
         </div>
+
+        {cls && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSave}
+              className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:opacity-90 transition-opacity shadow-xs"
+            >
+              <Save className="w-4 h-4" /> Save All to Cloud
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Selectors */}
@@ -155,27 +190,41 @@ export default function Attendance() {
 
       {cls && (
         <>
-          {/* Summary */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-              <div className="text-2xl font-bold text-green-700">{presentCount}</div>
-              <div className="text-xs text-green-600 font-medium">Present</div>
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3.5 text-center">
+              <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{presentCount}</div>
+              <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Present</div>
             </div>
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
-              <div className="text-2xl font-bold text-red-700">{absentCount}</div>
-              <div className="text-xs text-red-600 font-medium">Absent</div>
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3.5 text-center">
+              <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{lateCount}</div>
+              <div className="text-xs text-amber-600 dark:text-amber-400 font-medium">Late</div>
             </div>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center">
-              <div className="text-2xl font-bold text-yellow-700">{lateCount}</div>
-              <div className="text-xs text-yellow-600 font-medium">Late</div>
+            <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3.5 text-center">
+              <div className="text-2xl font-bold text-rose-600 dark:text-rose-400">{absentCount}</div>
+              <div className="text-xs text-rose-600 dark:text-rose-400 font-medium">Absent</div>
+            </div>
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3.5 text-center">
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{excusedCount}</div>
+              <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">Excused</div>
             </div>
           </div>
+
+          {saved && (
+            <div className="p-3 bg-emerald-500/15 border border-emerald-500/30 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                Attendance saved and synchronized with database!
+              </span>
+              <span className="text-[11px] opacity-80">{enrolledStudents.length} Students in Roster</span>
+            </div>
+          )}
 
           {mode === 'qr' ? (
             <QrAttendanceScanner
               activeClass={cls}
               allStudents={allStudents}
-              onMarkAttendance={(studentId, status) => setStatus(studentId, status)}
+              onMarkAttendance={(studentId, status) => handleMarkAndSave(studentId, status)}
               attendanceRecords={records}
             />
           ) : (

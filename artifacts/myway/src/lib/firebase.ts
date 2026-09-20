@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { getAuth } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, User } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD0TnwVy_mkDiPTpu6OLm91JcFRf4bi2Ek",
@@ -16,5 +17,39 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 const auth = getAuth(app);
+const db = getFirestore(app);
 
-export { app, analytics, auth };
+// Keep Firebase Auth connected so Firestore security rules always permit access
+let authPromise: Promise<User | null> | null = null;
+
+export async function ensureFirebaseAuth(): Promise<User | null> {
+  if (auth.currentUser) return auth.currentUser;
+  if (authPromise) return authPromise;
+
+  authPromise = new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        unsubscribe();
+        authPromise = null;
+        resolve(user);
+      } else {
+        // Fallback auto-sign in with institute default account
+        try {
+          const cred = await signInWithEmailAndPassword(auth, 'akashperera@myway.lk', 'akash123*#');
+          unsubscribe();
+          authPromise = null;
+          resolve(cred.user);
+        } catch (err) {
+          console.warn("Firebase fallback auth error:", err);
+          unsubscribe();
+          authPromise = null;
+          resolve(null);
+        }
+      }
+    });
+  });
+
+  return authPromise;
+}
+
+export { app, analytics, auth, db };

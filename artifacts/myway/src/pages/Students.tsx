@@ -1,19 +1,22 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { Plus, Search, ArrowLeft } from "lucide-react";
-import { getStudents, getClasses, deleteStudent } from "@/lib/storage";
+import { Plus, Search, ArrowLeft, QrCode } from "lucide-react";
+import { getStudents, getClasses, deleteStudent, useStorageSync } from "@/lib/storage";
 import { formatCurrency, GRADES } from "@/lib/utils";
 import type { Student } from "@/lib/types";
 import { useAuth } from "@/App";
+import StudentIdCardModal from "@/components/StudentIdCardModal";
 
 const STATUS_COLORS: Record<string, string> = {
-  Active: "bg-green-100 text-green-700",
-  Inactive: "bg-gray-100 text-gray-600",
-  Graduated: "bg-blue-100 text-blue-700",
-  Suspended: "bg-red-100 text-red-700",
+  Active: "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300",
+  Inactive: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300",
+  Graduated: "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300",
+  Suspended: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300",
 };
 
 export default function Students() {
+  useStorageSync(['myway_students', 'myway_classes']);
+
   const { user } = useAuth();
   const canEdit = user?.role === 'Super Admin' || user?.role === 'Owner' || user?.role === 'Operations Staff';
   const [search, setSearch] = useState("");
@@ -22,6 +25,7 @@ export default function Students() {
   const [filterClass, setFilterClass] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "id" | "joined">("name");
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [selectedStudentForQr, setSelectedStudentForQr] = useState<Student | null>(null);
   const [, forceUpdate] = useState(0);
 
   const allStudents = getStudents();
@@ -57,7 +61,7 @@ export default function Students() {
           </Link>
           <div>
             <h2 className="text-xl font-bold text-foreground">Students</h2>
-            <p className="text-sm text-muted-foreground">{allStudents.length} students registered</p>
+            <p className="text-sm text-muted-foreground">{allStudents.length} students registered (Cloud Synced)</p>
           </div>
         </div>
         {canEdit && (
@@ -146,9 +150,16 @@ export default function Students() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <Link href={`/students/${s.id}`} className="text-xs text-primary hover:underline" data-testid={`view-student-${s.id}`}>View</Link>
+                        <button
+                          onClick={() => setSelectedStudentForQr(s)}
+                          className="flex items-center gap-1 text-xs px-2 py-1 bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-md transition-colors"
+                          title="View and Print QR Pass"
+                        >
+                          <QrCode className="w-3.5 h-3.5 text-primary" /> Pass
+                        </button>
+                        <Link href={`/students/${s.id}`} className="text-xs text-primary hover:underline px-1 py-1" data-testid={`view-student-${s.id}`}>View</Link>
                         {canEdit && (
-                          <button onClick={() => setDeleteId(s.id)} className="text-xs text-destructive hover:underline" data-testid={`delete-student-${s.id}`}>Delete</button>
+                          <button onClick={() => setDeleteId(s.id)} className="text-xs text-destructive hover:underline px-1 py-1" data-testid={`delete-student-${s.id}`}>Delete</button>
                         )}
                       </div>
                     </td>
@@ -174,6 +185,14 @@ export default function Students() {
             </div>
           </div>
         </div>
+      )}
+
+      {selectedStudentForQr && (
+        <StudentIdCardModal
+          student={selectedStudentForQr}
+          isOpen={true}
+          onClose={() => setSelectedStudentForQr(null)}
+        />
       )}
     </div>
   );

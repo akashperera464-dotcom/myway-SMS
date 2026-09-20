@@ -24,11 +24,11 @@ import Expenses from "@/pages/Expenses";
 import TeacherPayroll from "@/pages/TeacherPayroll";
 import TeacherDashboard from "@/pages/TeacherDashboard";
 import NotFound from "@/pages/not-found";
-import { getSessionUser, getUser, setSessionUser } from "@/lib/storage";
+import { getSessionUser, getUser, setSessionUser, getSettings, useStorageSync } from "@/lib/storage";
 import type { AppUser } from "@/lib/types";
-import { useState, createContext, useContext } from "react";
+import { useState, createContext, useContext, useEffect } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, ensureFirebaseAuth } from "@/lib/firebase";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +49,8 @@ export const useAuth = () => useContext(AuthContext);
 
 // ─── Login Page ───────────────────────────────────────────────────────────────
 function Login() {
+  useStorageSync(['myway_settings']);
+
   const { login } = useAuth();
   const [, setLocation] = useLocation();
   const [username, setUsername] = useState("");
@@ -56,12 +58,15 @@ function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const settings = getSettings();
+  const bgUrl = settings.loginBgUrl;
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      // ── Step 1: Check local user store first (covers all users created in User Management) ──
+      // ── Step 1: Check local user store first ──
       const localUser = getUser(username, password);
       if (localUser) {
         if (localUser.status !== 'Active') {
@@ -69,6 +74,15 @@ function Login() {
           setLoading(false);
           return;
         }
+
+        // Connect Firebase Auth so Firestore operations are fully permitted
+        try {
+          await signInWithEmailAndPassword(auth, username, password);
+        } catch {
+          // If user not in Firebase Auth, ensure fallback Firebase Auth connection
+          await ensureFirebaseAuth();
+        }
+
         setSessionUser(localUser);
         login(localUser);
         setLocation("/");
@@ -77,8 +91,7 @@ function Login() {
 
       // ── Step 2: Fall back to Firebase for accounts not in local storage ──
       const userCredential = await signInWithEmailAndPassword(auth, username, password);
-      // Firebase succeeded but no local record — create a generic session
-      const firebaseUser = {
+      const firebaseUser: AppUser = {
         id: userCredential.user.uid,
         username: userCredential.user.email || username,
         fullName: (userCredential.user.email || username).split('@')[0],
@@ -89,7 +102,7 @@ function Login() {
       setSessionUser(firebaseUser);
       login(firebaseUser);
       setLocation("/");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setError("Invalid email or password. Please try again.");
     } finally {
@@ -98,65 +111,92 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
-      {/* Background decorative glows */}
-      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 rounded-full bg-primary/10 blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 rounded-full bg-accent/10 blur-[100px] pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-secondary/5 blur-[120px] pointer-events-none" />
+    <div
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-950"
+      style={
+        bgUrl
+          ? {
+              backgroundImage: `url(${bgUrl})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+            }
+          : undefined
+      }
+    >
+      {/* Dark frosted glass overlay over background image to guarantee high contrast */}
+      <div className={`absolute inset-0 ${bgUrl ? "bg-black/65 backdrop-blur-[2px]" : "bg-background"}`} />
 
-      <div className="w-full max-w-[380px] relative z-10">
+      {/* Background decorative glows */}
+      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 rounded-full bg-primary/15 blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 rounded-full bg-accent/15 blur-[100px] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-secondary/10 blur-[120px] pointer-events-none" />
+
+      <div className="w-full max-w-[390px] relative z-10">
         {/* Logo area */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-8">
           <div className="relative inline-flex">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center mx-auto mb-5 glow-teal">
-              <span className="text-primary-foreground font-black text-xl tracking-tight">MW</span>
-            </div>
+            {settings.logo ? (
+              <img
+                src={settings.logo}
+                alt={settings.name}
+                className="w-16 h-16 rounded-2xl object-cover mx-auto mb-4 border-2 border-primary/40 shadow-xl glow-teal bg-black/40"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center mx-auto mb-4 glow-teal shadow-xl border border-white/20">
+                <span className="text-primary-foreground font-black text-xl tracking-tight">MW</span>
+              </div>
+            )}
           </div>
-          <h1 className="text-3xl font-extrabold text-foreground tracking-tight">MYWAY</h1>
-          <p className="text-sm text-muted-foreground mt-1 tracking-wide">Educational Institute Management</p>
+          <h1 className="text-3xl font-extrabold text-white tracking-tight drop-shadow-md">
+            {settings.name || "MYWAY"}
+          </h1>
+          <p className="text-xs text-slate-300 font-medium mt-1 tracking-wide drop-shadow-sm">
+            Educational Institute Management
+          </p>
         </div>
 
         {/* Card */}
-        <div className="bg-card border border-border rounded-2xl p-7 shadow-2xl relative overflow-hidden">
+        <div className="bg-card/95 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl p-7 shadow-2xl relative overflow-hidden">
           {/* Card top glow line */}
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent" />
 
           <div className="mb-6">
             <h2 className="text-xl font-bold text-foreground">Welcome back</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Sign in to your account to continue</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Sign in to your institute account</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1.5 uppercase tracking-wider">
+              <label className="text-xs font-semibold text-foreground/90 block mb-1.5 uppercase tracking-wider">
                 Email Address
               </label>
               <input
                 type="text"
                 value={username}
                 onChange={e => { setUsername(e.target.value); setError(""); }}
-                className="w-full px-4 py-2.5 border border-input rounded-xl bg-muted/50 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all placeholder:text-muted-foreground/40"
+                className="w-full px-4 py-2.5 border border-input rounded-xl bg-background/80 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all placeholder:text-muted-foreground/50 shadow-inner"
                 placeholder="you@myway.lk"
                 autoComplete="off"
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1.5 uppercase tracking-wider">
+              <label className="text-xs font-semibold text-foreground/90 block mb-1.5 uppercase tracking-wider">
                 Password
               </label>
               <input
                 type="password"
                 value={password}
                 onChange={e => { setPassword(e.target.value); setError(""); }}
-                className="w-full px-4 py-2.5 border border-input rounded-xl bg-muted/50 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all placeholder:text-muted-foreground/40"
+                className="w-full px-4 py-2.5 border border-input rounded-xl bg-background/80 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all placeholder:text-muted-foreground/50 shadow-inner"
                 placeholder="••••••••"
                 autoComplete="off"
               />
             </div>
 
             {error && (
-              <div className="px-4 py-3 bg-destructive/10 border border-destructive/20 rounded-xl text-sm text-destructive flex items-start gap-2">
+              <div className="px-4 py-3 bg-destructive/15 border border-destructive/30 rounded-xl text-sm text-destructive font-medium flex items-start gap-2">
                 <span className="mt-0.5">⚠</span>
                 <span>{error}</span>
               </div>
@@ -165,7 +205,7 @@ function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-xl text-sm font-bold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 glow-teal mt-2"
+              className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-xl text-sm font-bold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 glow-teal mt-2 shadow-lg"
             >
               {loading ? (
                 <>
@@ -179,8 +219,8 @@ function Login() {
           </form>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground/40 mt-6">
-          © 2025 MYWAY Educational Institute
+        <p className="text-center text-xs text-slate-400 mt-6 drop-shadow-sm font-medium">
+          © {new Date().getFullYear()} {settings.name || "MYWAY Educational Institute"}
         </p>
       </div>
     </div>
@@ -228,6 +268,11 @@ function AppRoutes() {
 // ─── Root App ─────────────────────────────────────────────────────────────────
 function App() {
   const [user, setUser] = useState<AppUser | null>(getSessionUser);
+
+  useEffect(() => {
+    // Ensure Firebase Auth session is connected for Firestore live synchronization
+    ensureFirebaseAuth();
+  }, []);
 
   const login = (u: AppUser) => setUser(u);
   const logout = () => {

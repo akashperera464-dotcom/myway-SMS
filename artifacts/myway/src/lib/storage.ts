@@ -1,7 +1,10 @@
+import { useState, useEffect } from 'react';
 import type { Student, TuitionClass, Teacher, AttendanceRecord, Payment, ExamResult, Notice, InstituteSettings, AppUser, Subject, TeacherPayment, Expense } from './types';
 import { generateId, getCurrentMonth } from './utils';
+import { db, ensureFirebaseAuth } from './firebase';
+import { collection, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 
-const KEYS = {
+export const KEYS = {
   students: 'myway_students',
   classes: 'myway_classes',
   teachers: 'myway_teachers',
@@ -28,7 +31,11 @@ function getList<T>(key: string): T[] {
 }
 
 function saveList<T>(key: string, list: T[]): void {
-  localStorage.setItem(key, JSON.stringify(list));
+  try {
+    localStorage.setItem(key, JSON.stringify(list));
+  } catch (e) {
+    console.error("LocalStorage save error:", e);
+  }
 }
 
 function getOne<T>(key: string): T | null {
@@ -41,7 +48,41 @@ function getOne<T>(key: string): T | null {
 }
 
 function saveOne<T>(key: string, val: T): void {
-  localStorage.setItem(key, JSON.stringify(val));
+  try {
+    localStorage.setItem(key, JSON.stringify(val));
+  } catch (e) {
+    console.error("LocalStorage saveOne error:", e);
+  }
+}
+
+// Clean helper to remove undefined keys so Firestore accepts the document
+function cleanDoc<T>(obj: T): Record<string, unknown> {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+export function notifyDataUpdated(key: string) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('myway_data_synced', { detail: { key } }));
+  }
+}
+
+// React Hook to allow components to re-render automatically when data updates from Firestore or local writes
+export function useStorageSync(keysToWatch?: string[]) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent<{ key?: string }>;
+      if (!keysToWatch || !customEvent.detail?.key || keysToWatch.includes(customEvent.detail.key)) {
+        setTick(t => t + 1);
+      }
+    };
+    window.addEventListener('myway_data_synced', handler);
+    window.addEventListener('storage', handler);
+    return () => {
+      window.removeEventListener('myway_data_synced', handler);
+      window.removeEventListener('storage', handler);
+    };
+  }, [keysToWatch ? keysToWatch.join(',') : '']);
 }
 
 function ensureUsers() {
@@ -189,102 +230,311 @@ function seedData() {
 
 seedData();
 
+// ─── Firestore Real-Time Sync Setup ──────────────────────────────────────────
+let syncInitialized = false;
+
+export function initFirestoreSync() {
+  if (syncInitialized || typeof window === 'undefined') return;
+  syncInitialized = true;
+
+  ensureFirebaseAuth().then(() => {
+    const collectionsToSync: { key: string; colName: string }[] = [
+      { key: KEYS.students, colName: 'students' },
+      { key: KEYS.classes, colName: 'classes' },
+      { key: KEYS.teachers, colName: 'teachers' },
+      { key: KEYS.attendance, colName: 'attendance' },
+      { key: KEYS.payments, colName: 'payments' },
+      { key: KEYS.results, colName: 'results' },
+      { key: KEYS.notices, colName: 'notices' },
+      { key: KEYS.users, colName: 'users' },
+      { key: KEYS.subjects, colName: 'subjects' },
+      { key: KEYS.teacherPayments, colName: 'teacherPayments' },
+      { key: KEYS.expenses, colName: 'expenses' },
+    ];
+
+    collectionsToSync.forEach(({ key, colName }) => {
+      try {
+        const colRef = collection(db, colName);
+        onSnapshot(colRef, (snapshot) => {
+          if (!snapshot.empty) {
+            const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+            saveList(key, items);
+            notifyDataUpdated(key);
+          } else {
+            // First time: if collection is empty in Firestore, populate it from local seed data
+            const localItems = getList<Record<string, unknown>>(key);
+            if (localItems.length > 0) {
+              localItems.forEach(item => {
+                if (item.id) {
+                  setDoc(doc(db, colName, String(item.id)), cleanDoc(item)).catch(console.error);
+                }
+              });
+            }
+          }
+        }, (err) => {
+          console.warn(`Firestore onSnapshot error for ${colName}:`, err);
+        });
+      } catch (err) {
+        console.warn(`Failed to attach listener for ${colName}:`, err);
+      }
+    });
+
+    // Sync settings document
+    try {
+      const settingsDocRef = doc(db, 'settings', 'institute');
+      onSnapshot(settingsDocRef, (snap) => {
+        if (snap.exists()) {
+          const remoteSettings = snap.data() as InstituteSettings;
+          saveOne(KEYS.settings, remoteSettings);
+          notifyDataUpdated(KEYS.settings);
+        } else {
+          const localSettings = getOne<InstituteSettings>(KEYS.settings);
+          if (localSettings) {
+            setDoc(settingsDocRef, cleanDoc(localSettings)).catch(console.error);
+          }
+        }
+      }, (err) => {
+        console.warn("Firestore onSnapshot error for settings:", err);
+      });
+    } catch (err) {
+      console.warn("Failed to attach listener for settings:", err);
+    }
+  }).catch(err => {
+    console.warn("Firebase Auth error during Firestore sync init:", err);
+  });
+}
+
+// Auto-run sync in browser
+if (typeof window !== 'undefined') {
+  initFirestoreSync();
+}
+
+// ─── Students ────────────────────────────────────────────────────────────────
 export const getStudents = (): Student[] => getList<Student>(KEYS.students);
 export const getStudent = (id: string): Student | undefined => getList<Student>(KEYS.students).find(s => s.id === id);
+
 export const saveStudent = (s: Student): void => {
   const list = getList<Student>(KEYS.students).filter(x => x.id !== s.id);
   saveList(KEYS.students, [...list, s]);
+  notifyDataUpdated(KEYS.students);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'students', s.id), cleanDoc(s)).catch(console.error);
+  });
 };
-export const deleteStudent = (id: string): void => saveList(KEYS.students, getList<Student>(KEYS.students).filter(s => s.id !== id));
+
+export const deleteStudent = (id: string): void => {
+  saveList(KEYS.students, getList<Student>(KEYS.students).filter(s => s.id !== id));
+  notifyDataUpdated(KEYS.students);
+  ensureFirebaseAuth().then(() => {
+    deleteDoc(doc(db, 'students', id)).catch(console.error);
+  });
+};
+
 export const addStudent = (s: Omit<Student, 'id' | 'studentId'>): Student => {
   const students = getList<Student>(KEYS.students);
-  const newStudent: Student = { ...s, id: generateId(), studentId: `MW${new Date().getFullYear().toString().slice(2)}${String(students.length + 1).padStart(3, '0')}` };
+  const newStudent: Student = {
+    ...s,
+    id: generateId(),
+    studentId: `MW${new Date().getFullYear().toString().slice(2)}${String(students.length + 1).padStart(3, '0')}`,
+  };
   saveList(KEYS.students, [...students, newStudent]);
+  notifyDataUpdated(KEYS.students);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'students', newStudent.id), cleanDoc(newStudent)).catch(console.error);
+  });
   return newStudent;
 };
 
+// ─── Classes ─────────────────────────────────────────────────────────────────
 export const getClasses = (): TuitionClass[] => getList<TuitionClass>(KEYS.classes);
 export const getClass = (id: string): TuitionClass | undefined => getList<TuitionClass>(KEYS.classes).find(c => c.id === id);
+
 export const saveClass = (c: TuitionClass): void => {
   const list = getList<TuitionClass>(KEYS.classes).filter(x => x.id !== c.id);
   saveList(KEYS.classes, [...list, c]);
+  notifyDataUpdated(KEYS.classes);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'classes', c.id), cleanDoc(c)).catch(console.error);
+  });
 };
-export const deleteClass = (id: string): void => saveList(KEYS.classes, getList<TuitionClass>(KEYS.classes).filter(c => c.id !== id));
+
+export const deleteClass = (id: string): void => {
+  saveList(KEYS.classes, getList<TuitionClass>(KEYS.classes).filter(c => c.id !== id));
+  notifyDataUpdated(KEYS.classes);
+  ensureFirebaseAuth().then(() => {
+    deleteDoc(doc(db, 'classes', id)).catch(console.error);
+  });
+};
+
 export const addClass = (c: Omit<TuitionClass, 'id'>): TuitionClass => {
   const newClass: TuitionClass = { ...c, id: generateId() };
   saveList(KEYS.classes, [...getList<TuitionClass>(KEYS.classes), newClass]);
+  notifyDataUpdated(KEYS.classes);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'classes', newClass.id), cleanDoc(newClass)).catch(console.error);
+  });
   return newClass;
 };
 
+// ─── Teachers ────────────────────────────────────────────────────────────────
 export const getTeachers = (): Teacher[] => getList<Teacher>(KEYS.teachers);
 export const getTeacher = (id: string): Teacher | undefined => getList<Teacher>(KEYS.teachers).find(t => t.id === id);
+
 export const saveTeacher = (t: Teacher): void => {
   const list = getList<Teacher>(KEYS.teachers).filter(x => x.id !== t.id);
   saveList(KEYS.teachers, [...list, t]);
+  notifyDataUpdated(KEYS.teachers);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'teachers', t.id), cleanDoc(t)).catch(console.error);
+  });
 };
-export const deleteTeacher = (id: string): void => saveList(KEYS.teachers, getList<Teacher>(KEYS.teachers).filter(t => t.id !== id));
+
+export const deleteTeacher = (id: string): void => {
+  saveList(KEYS.teachers, getList<Teacher>(KEYS.teachers).filter(t => t.id !== id));
+  notifyDataUpdated(KEYS.teachers);
+  ensureFirebaseAuth().then(() => {
+    deleteDoc(doc(db, 'teachers', id)).catch(console.error);
+  });
+};
+
 export const addTeacher = (t: Omit<Teacher, 'id'>): Teacher => {
   const newTeacher: Teacher = { ...t, id: generateId() };
   saveList(KEYS.teachers, [...getList<Teacher>(KEYS.teachers), newTeacher]);
+  notifyDataUpdated(KEYS.teachers);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'teachers', newTeacher.id), cleanDoc(newTeacher)).catch(console.error);
+  });
   return newTeacher;
 };
 
+// ─── Attendance ──────────────────────────────────────────────────────────────
 export const getAttendance = (): AttendanceRecord[] => getList<AttendanceRecord>(KEYS.attendance);
 export const getAttendanceForClass = (classId: string): AttendanceRecord[] => getList<AttendanceRecord>(KEYS.attendance).filter(a => a.classId === classId);
 export const getAttendanceForDate = (classId: string, date: string): AttendanceRecord | undefined => getList<AttendanceRecord>(KEYS.attendance).find(a => a.classId === classId && a.date === date);
+
 export const saveAttendance = (a: AttendanceRecord): void => {
   const list = getList<AttendanceRecord>(KEYS.attendance).filter(x => x.id !== a.id);
   saveList(KEYS.attendance, [...list, a]);
+  notifyDataUpdated(KEYS.attendance);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'attendance', a.id), cleanDoc(a)).catch(console.error);
+  });
 };
 
+// ─── Payments ────────────────────────────────────────────────────────────────
 export const getPayments = (): Payment[] => getList<Payment>(KEYS.payments);
 export const getPaymentsForStudent = (studentId: string): Payment[] => getList<Payment>(KEYS.payments).filter(p => p.studentId === studentId);
 export const getPaymentsForClass = (classId: string): Payment[] => getList<Payment>(KEYS.payments).filter(p => p.classId === classId);
 export const getPaymentsForMonth = (month: string): Payment[] => getList<Payment>(KEYS.payments).filter(p => p.month === month);
+
 export const savePayment = (p: Payment): void => {
   const list = getList<Payment>(KEYS.payments).filter(x => x.id !== p.id);
   saveList(KEYS.payments, [...list, p]);
+  notifyDataUpdated(KEYS.payments);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'payments', p.id), cleanDoc(p)).catch(console.error);
+  });
 };
+
 export const addPayment = (p: Omit<Payment, 'id'>): Payment => {
   const newPayment: Payment = { ...p, id: generateId() };
   saveList(KEYS.payments, [...getList<Payment>(KEYS.payments), newPayment]);
+  notifyDataUpdated(KEYS.payments);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'payments', newPayment.id), cleanDoc(newPayment)).catch(console.error);
+  });
   return newPayment;
 };
-export const deletePayment = (id: string): void => saveList(KEYS.payments, getList<Payment>(KEYS.payments).filter(p => p.id !== id));
 
+export const deletePayment = (id: string): void => {
+  saveList(KEYS.payments, getList<Payment>(KEYS.payments).filter(p => p.id !== id));
+  notifyDataUpdated(KEYS.payments);
+  ensureFirebaseAuth().then(() => {
+    deleteDoc(doc(db, 'payments', id)).catch(console.error);
+  });
+};
+
+// ─── Exam Results ────────────────────────────────────────────────────────────
 export const getResults = (): ExamResult[] => getList<ExamResult>(KEYS.results);
 export const getResultsForStudent = (studentId: string): ExamResult[] => getList<ExamResult>(KEYS.results).filter(r => r.studentId === studentId);
 export const getResultsForClass = (classId: string): ExamResult[] => getList<ExamResult>(KEYS.results).filter(r => r.classId === classId);
+
 export const saveResult = (r: ExamResult): void => {
   const list = getList<ExamResult>(KEYS.results).filter(x => x.id !== r.id);
   saveList(KEYS.results, [...list, r]);
+  notifyDataUpdated(KEYS.results);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'results', r.id), cleanDoc(r)).catch(console.error);
+  });
 };
+
 export const addResult = (r: Omit<ExamResult, 'id'>): ExamResult => {
   const newResult: ExamResult = { ...r, id: generateId() };
   saveList(KEYS.results, [...getList<ExamResult>(KEYS.results), newResult]);
+  notifyDataUpdated(KEYS.results);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'results', newResult.id), cleanDoc(newResult)).catch(console.error);
+  });
   return newResult;
 };
-export const deleteResult = (id: string): void => saveList(KEYS.results, getList<ExamResult>(KEYS.results).filter(r => r.id !== id));
 
+export const deleteResult = (id: string): void => {
+  saveList(KEYS.results, getList<ExamResult>(KEYS.results).filter(r => r.id !== id));
+  notifyDataUpdated(KEYS.results);
+  ensureFirebaseAuth().then(() => {
+    deleteDoc(doc(db, 'results', id)).catch(console.error);
+  });
+};
+
+// ─── Notices ─────────────────────────────────────────────────────────────────
 export const getNotices = (): Notice[] => getList<Notice>(KEYS.notices);
+
 export const saveNotice = (n: Notice): void => {
   const list = getList<Notice>(KEYS.notices).filter(x => x.id !== n.id);
   saveList(KEYS.notices, [...list, n]);
+  notifyDataUpdated(KEYS.notices);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'notices', n.id), cleanDoc(n)).catch(console.error);
+  });
 };
+
 export const addNotice = (n: Omit<Notice, 'id'>): Notice => {
   const newNotice: Notice = { ...n, id: generateId() };
   saveList(KEYS.notices, [...getList<Notice>(KEYS.notices), newNotice]);
+  notifyDataUpdated(KEYS.notices);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'notices', newNotice.id), cleanDoc(newNotice)).catch(console.error);
+  });
   return newNotice;
 };
-export const deleteNotice = (id: string): void => saveList(KEYS.notices, getList<Notice>(KEYS.notices).filter(n => n.id !== id));
 
+export const deleteNotice = (id: string): void => {
+  saveList(KEYS.notices, getList<Notice>(KEYS.notices).filter(n => n.id !== id));
+  notifyDataUpdated(KEYS.notices);
+  ensureFirebaseAuth().then(() => {
+    deleteDoc(doc(db, 'notices', id)).catch(console.error);
+  });
+};
+
+// ─── Settings ────────────────────────────────────────────────────────────────
 export const getSettings = (): InstituteSettings => {
   return getOne<InstituteSettings>(KEYS.settings) ?? {
-    name: 'MYWAY Educational Institute', address: '', phone: '', email: '',
-    currency: 'LKR', currentMonth: getCurrentMonth(),
+    name: 'MYWAY Educational Institute',
+    address: '',
+    phone: '',
+    email: '',
+    currency: 'LKR',
+    currentMonth: getCurrentMonth(),
   };
 };
-export const saveSettings = (s: InstituteSettings): void => saveOne(KEYS.settings, s);
+
+export const saveSettings = (s: InstituteSettings): void => {
+  saveOne(KEYS.settings, s);
+  notifyDataUpdated(KEYS.settings);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'settings', 'institute'), cleanDoc(s)).catch(console.error);
+  });
+};
 
 export const getNextReceiptNo = (): string => {
   const payments = getList<Payment>(KEYS.payments);
@@ -296,57 +546,131 @@ export const getNextReceiptNo = (): string => {
   return `MYWAY-${year}-${String(max + 1).padStart(4, '0')}`;
 };
 
+// ─── Users ───────────────────────────────────────────────────────────────────
 export const getUsers = (): AppUser[] => getList<AppUser>(KEYS.users);
-export const getUser = (username: string, password: string): AppUser | undefined => getList<AppUser>(KEYS.users).find(u => u.username === username && u.password === password && u.status === 'Active');
+export const getUser = (username: string, password: string): AppUser | undefined =>
+  getList<AppUser>(KEYS.users).find(u => u.username === username && u.password === password && u.status === 'Active');
+
 export const addUser = (u: Omit<AppUser, 'id'>): AppUser => {
   const newUser: AppUser = { ...u, id: generateId() };
   saveList(KEYS.users, [...getList<AppUser>(KEYS.users), newUser]);
+  notifyDataUpdated(KEYS.users);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'users', newUser.id), cleanDoc(newUser)).catch(console.error);
+  });
   return newUser;
 };
+
 export const saveUser = (u: AppUser): void => {
   const list = getList<AppUser>(KEYS.users).filter(x => x.id !== u.id);
   saveList(KEYS.users, [...list, u]);
+  notifyDataUpdated(KEYS.users);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'users', u.id), cleanDoc(u)).catch(console.error);
+  });
 };
-export const deleteUser = (id: string): void => saveList(KEYS.users, getList<AppUser>(KEYS.users).filter(u => u.id !== id));
+
+export const deleteUser = (id: string): void => {
+  saveList(KEYS.users, getList<AppUser>(KEYS.users).filter(u => u.id !== id));
+  notifyDataUpdated(KEYS.users);
+  ensureFirebaseAuth().then(() => {
+    deleteDoc(doc(db, 'users', id)).catch(console.error);
+  });
+};
+
 export const getSessionUser = (): AppUser | null => getOne<AppUser>(KEYS.sessionUser);
 export const setSessionUser = (u: AppUser | null): void => {
   if (u) saveOne(KEYS.sessionUser, u);
   else localStorage.removeItem(KEYS.sessionUser);
 };
 
+// ─── Subjects ────────────────────────────────────────────────────────────────
 export const getSubjects = (): Subject[] => getList<Subject>(KEYS.subjects);
 export const getSubject = (id: string): Subject | undefined => getList<Subject>(KEYS.subjects).find(s => s.id === id);
+
 export const saveSubject = (s: Subject): void => {
   const list = getList<Subject>(KEYS.subjects).filter(x => x.id !== s.id);
   saveList(KEYS.subjects, [...list, s]);
+  notifyDataUpdated(KEYS.subjects);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'subjects', s.id), cleanDoc(s)).catch(console.error);
+  });
 };
+
 export const addSubject = (s: Omit<Subject, 'id'>): Subject => {
   const newSubject: Subject = { ...s, id: generateId() };
   saveList(KEYS.subjects, [...getList<Subject>(KEYS.subjects), newSubject]);
+  notifyDataUpdated(KEYS.subjects);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'subjects', newSubject.id), cleanDoc(newSubject)).catch(console.error);
+  });
   return newSubject;
 };
-export const deleteSubject = (id: string): void => saveList(KEYS.subjects, getList<Subject>(KEYS.subjects).filter(s => s.id !== id));
 
+export const deleteSubject = (id: string): void => {
+  saveList(KEYS.subjects, getList<Subject>(KEYS.subjects).filter(s => s.id !== id));
+  notifyDataUpdated(KEYS.subjects);
+  ensureFirebaseAuth().then(() => {
+    deleteDoc(doc(db, 'subjects', id)).catch(console.error);
+  });
+};
+
+// ─── Teacher Payments ────────────────────────────────────────────────────────
 export const getTeacherPayments = (): TeacherPayment[] => getList<TeacherPayment>(KEYS.teacherPayments);
+
 export const saveTeacherPayment = (tp: TeacherPayment): void => {
   const list = getList<TeacherPayment>(KEYS.teacherPayments).filter(x => x.id !== tp.id);
   saveList(KEYS.teacherPayments, [...list, tp]);
+  notifyDataUpdated(KEYS.teacherPayments);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'teacherPayments', tp.id), cleanDoc(tp)).catch(console.error);
+  });
 };
+
 export const addTeacherPayment = (tp: Omit<TeacherPayment, 'id'>): TeacherPayment => {
   const newTp: TeacherPayment = { ...tp, id: generateId() };
   saveList(KEYS.teacherPayments, [...getList<TeacherPayment>(KEYS.teacherPayments), newTp]);
+  notifyDataUpdated(KEYS.teacherPayments);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'teacherPayments', newTp.id), cleanDoc(newTp)).catch(console.error);
+  });
   return newTp;
 };
-export const deleteTeacherPayment = (id: string): void => saveList(KEYS.teacherPayments, getList<TeacherPayment>(KEYS.teacherPayments).filter(tp => tp.id !== id));
 
+export const deleteTeacherPayment = (id: string): void => {
+  saveList(KEYS.teacherPayments, getList<TeacherPayment>(KEYS.teacherPayments).filter(tp => tp.id !== id));
+  notifyDataUpdated(KEYS.teacherPayments);
+  ensureFirebaseAuth().then(() => {
+    deleteDoc(doc(db, 'teacherPayments', id)).catch(console.error);
+  });
+};
+
+// ─── Expenses ────────────────────────────────────────────────────────────────
 export const getExpenses = (): Expense[] => getList<Expense>(KEYS.expenses);
+
 export const saveExpense = (e: Expense): void => {
   const list = getList<Expense>(KEYS.expenses).filter(x => x.id !== e.id);
   saveList(KEYS.expenses, [...list, e]);
+  notifyDataUpdated(KEYS.expenses);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'expenses', e.id), cleanDoc(e)).catch(console.error);
+  });
 };
+
 export const addExpense = (e: Omit<Expense, 'id'>): Expense => {
   const newE: Expense = { ...e, id: generateId() };
   saveList(KEYS.expenses, [...getList<Expense>(KEYS.expenses), newE]);
+  notifyDataUpdated(KEYS.expenses);
+  ensureFirebaseAuth().then(() => {
+    setDoc(doc(db, 'expenses', newE.id), cleanDoc(newE)).catch(console.error);
+  });
   return newE;
 };
-export const deleteExpense = (id: string): void => saveList(KEYS.expenses, getList<Expense>(KEYS.expenses).filter(e => e.id !== id));
+
+export const deleteExpense = (id: string): void => {
+  saveList(KEYS.expenses, getList<Expense>(KEYS.expenses).filter(e => e.id !== id));
+  notifyDataUpdated(KEYS.expenses);
+  ensureFirebaseAuth().then(() => {
+    deleteDoc(doc(db, 'expenses', id)).catch(console.error);
+  });
+};

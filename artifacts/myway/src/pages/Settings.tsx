@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { Save, Shield, UserPlus, Trash2, Camera, ArrowLeft } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Save, Shield, UserPlus, Trash2, Camera, ArrowLeft, Image as ImageIcon, X } from "lucide-react";
 import { Link } from "wouter";
-import { getSettings, saveSettings, getUsers, addUser, deleteUser, saveUser } from "@/lib/storage";
+import { getSettings, saveSettings, getUsers, addUser, deleteUser, saveUser, useStorageSync } from "@/lib/storage";
 import { getCurrentMonth } from "@/lib/utils";
 import type { InstituteSettings, AppUser } from "@/lib/types";
 import { useAuth } from "@/App";
@@ -11,6 +11,8 @@ const inputCls = "w-full px-3 py-2 text-sm border border-input rounded-lg bg-bac
 const ROLES: AppUser['role'][] = ['Super Admin', 'Owner', 'Operations Staff', 'Teacher', 'Student'];
 
 export default function Settings() {
+  useStorageSync(['myway_settings', 'myway_users']);
+
   const { user: currentUser } = useAuth();
   const isSuperAdmin = currentUser?.role === 'Super Admin';
 
@@ -19,6 +21,12 @@ export default function Settings() {
   const [users, setUsers] = useState<AppUser[]>(getUsers());
   const [newUser, setNewUser] = useState({ username: '', fullName: '', role: 'Teacher' as AppUser['role'], password: '', status: 'Active' as AppUser['status'] });
   const [addMsg, setAddMsg] = useState('');
+
+  // Sync state if settings updated remotely
+  useEffect(() => {
+    setForm(getSettings());
+    setUsers(getUsers());
+  }, []);
 
   const reloadUsers = () => setUsers(getUsers());
 
@@ -33,7 +41,6 @@ export default function Settings() {
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
-
 
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date();
@@ -75,7 +82,7 @@ export default function Settings() {
         </Link>
         <div>
           <h2 className="text-xl font-bold text-foreground">Settings</h2>
-          <p className="text-sm text-muted-foreground">Manage institute information and user access</p>
+          <p className="text-sm text-muted-foreground">Manage institute information, branding, and access</p>
         </div>
       </div>
 
@@ -178,13 +185,13 @@ export default function Settings() {
                 {isSuperAdmin && (
                   <button
                     onClick={() => handleToggleStatus(u)}
-                    className={`px-2 py-1 text-xs rounded-md border ${u.status === 'Active' ? 'border-green-500/30 text-green-700 bg-green-50' : 'border-border text-muted-foreground'}`}
+                    className={`px-2 py-1 text-xs rounded-md border ${u.status === 'Active' ? 'border-green-500/30 text-green-700 bg-green-50 dark:bg-green-950/30' : 'border-border text-muted-foreground'}`}
                   >
                     {u.status}
                   </button>
                 )}
 
-                {isSuperAdmin && u.username !== 'akash@myway.lk' && (
+                {isSuperAdmin && u.username !== 'akashperera@myway.lk' && (
                   <button
                     onClick={() => handleDelete(u)}
                     className="px-2 py-1 text-xs text-destructive rounded-md hover:bg-destructive/10 transition-colors flex items-center gap-1"
@@ -198,26 +205,77 @@ export default function Settings() {
         </div>
       </section>
 
-      {/* ── Institute Info ── */}
+      {/* ── Institute Info & Branding ── */}
       <form onSubmit={handleSave} className="space-y-5">
-        <section className="bg-card border border-border rounded-xl p-5 space-y-4">
-          <h3 className="font-semibold text-foreground">Institute Information</h3>
-          
-          <div className="flex items-center gap-6 pb-4">
+        <section className="bg-card border border-border rounded-xl p-5 space-y-5">
+          <div className="flex items-center gap-2">
+            <ImageIcon className="w-4 h-4 text-primary" />
+            <h3 className="font-semibold text-foreground">Institute Information &amp; Branding</h3>
+          </div>
+
+          {/* Logo URL */}
+          <div className="flex items-center gap-6 pb-2">
             <div className="relative group">
               <div className="w-16 h-16 rounded-xl bg-primary/10 border-2 border-primary/20 flex items-center justify-center overflow-hidden shrink-0">
                 {form.logo ? (
                   <img src={form.logo} alt="Institute Logo" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="font-bold text-primary">LOGO</span>
+                  <span className="font-bold text-primary text-xs">LOGO</span>
                 )}
               </div>
             </div>
             <div className="flex-1">
-              <label className="text-sm font-medium text-foreground block mb-1">Institute Logo URL</label>
-              <input value={form.logo || ''} onChange={e => set('logo', e.target.value)} className={inputCls} placeholder="https://example.com/logo.png" />
-              <p className="text-xs text-muted-foreground mt-1">Paste an image URL from Google Drive, Cloudinary, etc.</p>
+              <label className="text-xs font-semibold text-foreground block mb-1 uppercase tracking-wider">Institute Logo URL</label>
+              <input value={form.logo || ''} onChange={e => set('logo', e.target.value)} className={inputCls} placeholder="https://res.cloudinary.com/.../logo.png" />
+              <p className="text-xs text-muted-foreground mt-1">Paste an image URL from Cloudinary, Imgur, or direct web link.</p>
             </div>
+          </div>
+
+          {/* Login Background Image URL */}
+          <div className="border-t border-border pt-4 space-y-3">
+            <label className="text-xs font-semibold text-foreground block uppercase tracking-wider">
+              Login Page Background Image URL (Cloudinary / Image URL)
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                value={form.loginBgUrl || ''}
+                onChange={e => set('loginBgUrl', e.target.value)}
+                className={inputCls}
+                placeholder="https://res.cloudinary.com/.../login-bg.jpg"
+              />
+              {form.loginBgUrl && (
+                <button
+                  type="button"
+                  onClick={() => set('loginBgUrl', '')}
+                  className="p-2 border border-border rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
+                  title="Remove image"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Paste your Cloudinary image URL here. The login box uses elegant frosted-glass styling so your text, buttons, and inputs remain 100% crystal-clear and readable over any image.
+            </p>
+
+            {/* Live Preview Thumbnail */}
+            {form.loginBgUrl && (
+              <div className="relative rounded-xl overflow-hidden border border-border max-w-sm h-36 bg-slate-950 group">
+                <img
+                  src={form.loginBgUrl}
+                  alt="Login Background Preview"
+                  className="w-full h-full object-cover opacity-80"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "";
+                  }}
+                />
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center p-3 text-center">
+                  <div className="bg-card/90 backdrop-blur-md px-4 py-2 rounded-lg border border-white/20 text-xs font-semibold text-foreground shadow-md">
+                    Preview: Login Card on Image
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-border pt-4">
@@ -264,13 +322,12 @@ export default function Settings() {
         </section>
 
         <div className="flex items-center gap-3">
-          <button data-testid="save-settings-btn" type="submit" className="flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm hover:opacity-90 transition-opacity">
-            <Save className="w-4 h-4" /> Save Settings
+          <button data-testid="save-settings-btn" type="submit" className="flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm hover:opacity-90 transition-opacity font-semibold">
+            <Save className="w-4 h-4" /> Save Settings to Cloud
           </button>
-          {saved && <span className="text-sm text-green-600 font-medium">Settings saved!</span>}
+          {saved && <span className="text-sm text-green-600 font-medium">Settings saved to database!</span>}
         </div>
       </form>
-
     </div>
   );
 }

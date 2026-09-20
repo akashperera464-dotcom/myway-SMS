@@ -1,6 +1,6 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { X, Printer, Download, Phone, ShieldCheck } from "lucide-react";
+import { X, Printer, Download, Phone, ShieldCheck, Check } from "lucide-react";
 import type { Student } from "@/lib/types";
 import { generateStudentQrPayload } from "@/lib/qrUtils";
 import { formatDate } from "@/lib/utils";
@@ -13,7 +13,8 @@ interface StudentIdCardModalProps {
 
 export default function StudentIdCardModal({ student, isOpen, onClose }: StudentIdCardModalProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const qrRef = useRef<SVGSVGElement>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
 
   if (!isOpen) return null;
 
@@ -23,35 +24,147 @@ export default function StudentIdCardModal({ student, isOpen, onClose }: Student
     window.print();
   };
 
-  const handleDownloadQr = () => {
-    const svgEl = cardRef.current?.querySelector("svg");
-    if (!svgEl) return;
-
-    const svgData = new XMLSerializer().serializeToString(svgEl);
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    const img = new Image();
-
-    img.onload = () => {
-      canvas.width = 300;
-      canvas.height = 300;
-      if (ctx) {
-        ctx.fillStyle = "white";
-        ctx.fillRect(0, 0, 300, 300);
-        ctx.drawImage(img, 0, 0, 300, 300);
+  // 100% Reliable QR Pass / Code PNG generator with High-DPI Canvas
+  const handleDownloadQrCard = (qrOnly: boolean = false) => {
+    setDownloading(true);
+    try {
+      const svgEl = cardRef.current?.querySelector("svg");
+      if (!svgEl) {
+        setDownloading(false);
+        return;
       }
-      const pngFile = canvas.toDataURL("image/png");
-      const downloadLink = document.createElement("a");
-      downloadLink.download = `QR_${student.studentId || "student"}.png`;
-      downloadLink.href = pngFile;
-      downloadLink.click();
-    };
 
-    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+      const svgData = new XMLSerializer().serializeToString(svgEl);
+      const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+      const URL = window.URL || window.webkitURL;
+      const blobURL = URL.createObjectURL(svgBlob);
+      const img = new Image();
+
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          setDownloading(false);
+          return;
+        }
+
+        if (qrOnly) {
+          // Sharp, high-DPI 500x500 standalone QR
+          canvas.width = 500;
+          canvas.height = 500;
+          ctx.fillStyle = "#FFFFFF";
+          ctx.fillRect(0, 0, 500, 500);
+
+          // Draw QR centered with 40px quiet zone
+          ctx.drawImage(img, 40, 40, 420, 420);
+
+          // Label below QR
+          ctx.fillStyle = "#0F172A";
+          ctx.font = "bold 16px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(student.studentId, 250, 480);
+        } else {
+          // Full Student QR Pass Card (600x420)
+          canvas.width = 600;
+          canvas.height = 420;
+
+          // Background card
+          const gradient = ctx.createLinearGradient(0, 0, 600, 420);
+          gradient.addColorStop(0, "#0F172A");
+          gradient.addColorStop(0.5, "#1E293B");
+          gradient.addColorStop(1, "#0D9488");
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, 600, 420);
+
+          // Top Header Banner
+          ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+          ctx.fillRect(0, 0, 600, 75);
+
+          // Institute Name
+          ctx.fillStyle = "#2DD4BF";
+          ctx.font = "900 24px sans-serif";
+          ctx.textAlign = "left";
+          ctx.fillText("MYWAY", 30, 42);
+
+          ctx.fillStyle = "#E2E8F0";
+          ctx.font = "500 12px sans-serif";
+          ctx.fillText("Educational Institute · Student Pass", 30, 62);
+
+          // Pass Badge on top right
+          ctx.fillStyle = "rgba(45, 212, 191, 0.25)";
+          ctx.beginPath();
+          ctx.roundRect(470, 25, 100, 30, 6);
+          ctx.fill();
+          ctx.fillStyle = "#5EEAD4";
+          ctx.font = "bold 11px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText("STUDENT PASS", 520, 44);
+
+          // Student Details (Left Column)
+          ctx.textAlign = "left";
+          ctx.fillStyle = "#FFFFFF";
+          ctx.font = "bold 20px sans-serif";
+          ctx.fillText(student.fullName.length > 24 ? student.fullName.slice(0, 24) + "..." : student.fullName, 30, 130);
+
+          ctx.fillStyle = "#2DD4BF";
+          ctx.font = "bold 16px monospace";
+          ctx.fillText(`ID: ${student.studentId}`, 30, 160);
+
+          ctx.fillStyle = "#CBD5E1";
+          ctx.font = "14px sans-serif";
+          ctx.fillText(`Reg No: ${student.registerNo || "N/A"}`, 30, 195);
+          ctx.fillText(`Grade: ${student.grade}`, 30, 225);
+          ctx.fillText(`School: ${student.school.length > 28 ? student.school.slice(0, 28) + "..." : student.school}`, 30, 255);
+          ctx.fillText(`Guardian: ${student.guardianPhone} (${student.guardianRelationship || "Parent"})`, 30, 285);
+
+          // QR Code Card Container (Right Column)
+          ctx.fillStyle = "#FFFFFF";
+          ctx.beginPath();
+          ctx.roundRect(380, 110, 190, 190, 16);
+          ctx.fill();
+
+          // Draw the QR Code image inside the white container
+          ctx.drawImage(img, 395, 125, 160, 160);
+
+          // Footer
+          ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+          ctx.fillRect(0, 360, 600, 60);
+
+          ctx.fillStyle = "#94A3B8";
+          ctx.font = "11px sans-serif";
+          ctx.fillText(`Joined: ${formatDate(student.joinDate)}`, 30, 395);
+          ctx.textAlign = "right";
+          ctx.fillText("Official MYWAY Verification QR Code", 570, 395);
+        }
+
+        const pngFile = canvas.toDataURL("image/png", 1.0);
+        const downloadLink = document.createElement("a");
+        downloadLink.download = qrOnly
+          ? `QR_Code_${student.studentId || "student"}.png`
+          : `MYWAY_Pass_${student.studentId || "student"}.png`;
+        downloadLink.href = pngFile;
+        downloadLink.click();
+        URL.revokeObjectURL(blobURL);
+
+        setDownloaded(true);
+        setTimeout(() => setDownloaded(false), 3000);
+      };
+
+      img.onerror = () => {
+        console.error("Failed to render QR to image");
+        URL.revokeObjectURL(blobURL);
+      };
+
+      img.src = blobURL;
+    } catch (err) {
+      console.error("QR image generation error:", err);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
       {/* Print Styles */}
       <style>{`
         @media print {
@@ -81,9 +194,9 @@ export default function StudentIdCardModal({ student, isOpen, onClose }: Student
           <div>
             <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-primary" />
-              Student ID Pass
+              Student ID Pass &amp; QR
             </h3>
-            <p className="text-xs text-muted-foreground">Digital & Printable Official Student Pass</p>
+            <p className="text-xs text-muted-foreground">Digital pass for automated attendance &amp; verification</p>
           </div>
           <button
             onClick={onClose}
@@ -138,7 +251,6 @@ export default function StudentIdCardModal({ student, isOpen, onClose }: Student
               {/* QR Code SVG */}
               <div className="p-1.5 bg-white rounded-lg shadow-md flex-shrink-0 flex items-center justify-center">
                 <QRCodeSVG
-                  ref={qrRef}
                   value={qrPayload}
                   size={64}
                   level="H"
@@ -161,19 +273,31 @@ export default function StudentIdCardModal({ student, isOpen, onClose }: Student
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
           <button
-            onClick={handleDownloadQr}
+            onClick={() => handleDownloadQrCard(true)}
+            disabled={downloading}
             className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-lg text-xs font-medium text-foreground hover:bg-muted transition-colors"
           >
-            <Download className="w-4 h-4" /> Download QR
+            <Download className="w-3.5 h-3.5" /> Download QR Only
           </button>
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-opacity"
-          >
-            <Printer className="w-4 h-4" /> Print ID Card
-          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleDownloadQrCard(false)}
+              disabled={downloading}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-secondary text-secondary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-opacity"
+            >
+              {downloaded ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Download className="w-3.5 h-3.5" />}
+              {downloaded ? "Saved!" : "Download Full Pass (PNG)"}
+            </button>
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-opacity"
+            >
+              <Printer className="w-3.5 h-3.5" /> Print ID Card
+            </button>
+          </div>
         </div>
       </div>
     </div>

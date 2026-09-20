@@ -153,6 +153,7 @@ export interface InstituteSettings {
   phone: string;
   email: string;
   logo?: string;
+  loginBgUrl?: string;
   registrationNo?: string;
   currency: 'LKR';
   currentMonth: string;
