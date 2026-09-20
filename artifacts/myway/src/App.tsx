@@ -112,17 +112,26 @@ function Login() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-950"
-      style={
-        bgUrl
+      className="flex items-center justify-center p-4 relative overflow-hidden bg-slate-950"
+      style={{
+        // 100dvh = dynamic viewport height: accounts for mobile address bar / toolbar
+        // appearing/disappearing so the background image always fills the actual
+        // visible screen on every phone. Falls back to 100vh on older browsers
+        // via the .min-h-screen-dvh class in index.css.
+        minHeight: "100dvh",
+        height: "100dvh",
+        ...(bgUrl
           ? {
               backgroundImage: `url(${bgUrl})`,
               backgroundSize: "cover",
-              backgroundPosition: "center",
+              backgroundPosition: "center center",
               backgroundRepeat: "no-repeat",
+              backgroundAttachment: "scroll", // 'fixed' breaks on iOS Safari + Android WebView
+              backgroundOrigin: "border-box",
+              backgroundClip: "border-box",
             }
-          : undefined
-      }
+          : {}),
+      }}
     >
       {/* Dark frosted glass overlay over background image to guarantee high contrast */}
       <div className={`absolute inset-0 ${bgUrl ? "bg-black/65 backdrop-blur-[2px]" : "bg-background"}`} />
