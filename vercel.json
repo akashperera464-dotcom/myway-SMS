@@ -1,7 +1,7 @@
 {
-  "buildCommand": "cd artifacts/myway && npm run build",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "cd artifacts/myway && pnpm run build",
   "outputDirectory": "artifacts/myway/dist/public",
-  "installCommand": "npm install --prefix artifacts/myway",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
