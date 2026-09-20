@@ -7,7 +7,7 @@ import {
   LogOut, HelpCircle, Library
 } from "lucide-react";
 import { useAuth } from "@/App";
-import { setSessionUser, getSettings } from "@/lib/storage";
+import { setSessionUser, getSettings, useStorageSync } from "@/lib/storage";
 
 const mainNavItems = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -40,6 +40,8 @@ export default function Sidebar({ collapsed, onToggle, onNavItemClick }: Sidebar
   const [location] = useLocation();
   const { user, logout } = useAuth();
   const settings = getSettings();
+  // Re-render when users list or session user changes so role-based nav items stay accurate
+  useStorageSync(["myway_users", "myway_session_user", "myway_settings"]);
 
   const handleLogout = () => {
     if (onNavItemClick) onNavItemClick();
@@ -118,8 +120,8 @@ export default function Sidebar({ collapsed, onToggle, onNavItemClick }: Sidebar
         })}
       </nav>
 
-      {/* Bottom section */}
-      <div className="border-t border-sidebar-border px-2 py-3 space-y-0.5">
+      {/* Bottom section — kept visible at all times via flex-shrink-0 so Users / My Profile / Settings are never clipped on small screens */}
+      <div className="border-t border-sidebar-border px-2 py-3 space-y-0.5 flex-shrink-0 bg-sidebar">
         {bottomNavItems.map(({ path, label, icon: Icon, role }) => {
           if (role && user && !role.includes(user.role)) return null;
           
