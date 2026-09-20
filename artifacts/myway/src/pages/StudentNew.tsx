@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, QrCode, CheckCircle2, Printer, UserCircle2 } from "lucide-react";
 import { addStudent, getClasses, getTeachers, getSubjects } from "@/lib/storage";
 import { GRADES, STREAMS, SL_DISTRICTS, SL_PROVINCES } from "@/lib/utils";
 import type { Student } from "@/lib/types";
+import { QRCodeSVG } from "qrcode.react";
+import { generateStudentQrPayload } from "@/lib/qrUtils";
+import StudentIdCardModal from "@/components/StudentIdCardModal";
 
 const MEDIUMS = ['Sinhala', 'Tamil', 'English'] as const;
 const STATUSES = ['Active', 'Inactive', 'Graduated', 'Suspended'] as const;
@@ -26,6 +29,8 @@ export default function StudentNew() {
   const subjects = getSubjects();
   
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [createdStudent, setCreatedStudent] = useState<Student | null>(null);
+  const [showIdCard, setShowIdCard] = useState(false);
 
   const [form, setForm] = useState({
     registerNo: '', fullName: '', nameInitials: '', dateOfBirth: '', gender: 'Male' as 'Male' | 'Female',
@@ -70,11 +75,70 @@ export default function StudentNew() {
     setSaving(true);
     try {
       const student = addStudent({ ...form, monthlyFee: Number(form.monthlyFee) });
-      setLocation(`/students/${student.id}`);
+      setCreatedStudent(student);
     } finally {
       setSaving(false);
     }
   };
+
+  const qrPayloadPreview = generateStudentQrPayload(form.registerNo || "REG-PREVIEW");
+
+  // ── Post-creation success screen ──────────────────────────────────────────
+  if (createdStudent) {
+    const createdQr = generateStudentQrPayload(createdStudent.studentId || createdStudent.registerNo || createdStudent.id);
+    return (
+      <div className="max-w-lg mx-auto py-12 text-center space-y-6">
+        <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+          <CheckCircle2 className="w-8 h-8" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-foreground">Student Registered!</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            <span className="font-semibold text-foreground">{createdStudent.fullName}</span> has been successfully added to MYWAY.
+          </p>
+        </div>
+
+        {/* QR Preview */}
+        <div className="bg-card border border-border rounded-xl p-6 inline-block mx-auto shadow-sm">
+          <div className="bg-white p-3 rounded-lg border border-border inline-block shadow-xs mb-3">
+            <QRCodeSVG value={createdQr} size={120} level="H" />
+          </div>
+          <p className="text-xs font-mono text-muted-foreground">{createdQr}</p>
+          <p className="text-xs text-muted-foreground mt-1">Student ID: <span className="font-semibold text-foreground">{createdStudent.studentId}</span></p>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <button
+            onClick={() => setShowIdCard(true)}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity"
+          >
+            <Printer className="w-4 h-4" /> View &amp; Print ID Card
+          </button>
+          <button
+            onClick={() => setLocation(`/students/${createdStudent.id}`)}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 border border-border rounded-lg text-sm font-medium hover:bg-muted transition-colors"
+          >
+            <UserCircle2 className="w-4 h-4" /> Go to Profile
+          </button>
+          <Link
+            href="/students/new"
+            onClick={() => setCreatedStudent(null)}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 border border-border rounded-lg text-sm font-medium hover:bg-muted transition-colors"
+          >
+            + Add Another Student
+          </Link>
+        </div>
+
+        <StudentIdCardModal
+          student={createdStudent}
+          isOpen={showIdCard}
+          onClose={() => setShowIdCard(false)}
+        />
+      </div>
+    );
+  }
+
 
   return (
     <div className="max-w-3xl">
@@ -88,22 +152,44 @@ export default function StudentNew() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <section className="bg-card border border-border rounded-xl p-5 space-y-4">
-          <h3 className="font-semibold text-foreground">Personal Information</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Register Number" required>
-              <input data-testid="input-registerNo" value={form.registerNo} onChange={e => set('registerNo', e.target.value)} className={inputCls} placeholder="e.g. REG-001" />
-              {errors.registerNo && <p className="text-xs text-destructive mt-1">{errors.registerNo}</p>}
-            </Field>
-            <Field label="Full Name" required>
-              <input data-testid="input-fullName" value={form.fullName} onChange={e => set('fullName', e.target.value)} className={inputCls} placeholder="e.g. Kasun Malinda Perera" />
-              {errors.fullName && <p className="text-xs text-destructive mt-1">{errors.fullName}</p>}
-            </Field>
-            <Field label="Name with Initials">
-              <input value={form.nameInitials} onChange={e => set('nameInitials', e.target.value)} className={inputCls} placeholder="e.g. K.M. Perera" />
-            </Field>
-            <Field label="Date of Birth">
-              <input type="date" value={form.dateOfBirth} onChange={e => set('dateOfBirth', e.target.value)} className={inputCls} />
-            </Field>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-foreground">Personal Information</h3>
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <QrCode className="w-3.5 h-3.5 text-primary" /> Auto-Generated QR Code
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+            <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Register Number" required>
+                <input data-testid="input-registerNo" value={form.registerNo} onChange={e => set('registerNo', e.target.value)} className={inputCls} placeholder="e.g. REG-001" />
+                {errors.registerNo && <p className="text-xs text-destructive mt-1">{errors.registerNo}</p>}
+              </Field>
+              <Field label="Full Name" required>
+                <input data-testid="input-fullName" value={form.fullName} onChange={e => set('fullName', e.target.value)} className={inputCls} placeholder="e.g. Kasun Malinda Perera" />
+                {errors.fullName && <p className="text-xs text-destructive mt-1">{errors.fullName}</p>}
+              </Field>
+              <Field label="Name with Initials">
+                <input value={form.nameInitials} onChange={e => set('nameInitials', e.target.value)} className={inputCls} placeholder="e.g. K.M. Perera" />
+              </Field>
+              <Field label="Date of Birth">
+                <input type="date" value={form.dateOfBirth} onChange={e => set('dateOfBirth', e.target.value)} className={inputCls} />
+              </Field>
+            </div>
+
+            {/* QR Code Live Preview Card */}
+            <div className="bg-muted/40 border border-border rounded-xl p-3 flex flex-col items-center justify-center text-center space-y-2">
+              <div className="bg-white p-2 rounded-lg border border-border shadow-xs">
+                <QRCodeSVG value={qrPayloadPreview} size={76} level="M" />
+              </div>
+              <div>
+                <span className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase block">QR Code Preview</span>
+                <span className="text-[11px] font-mono font-medium text-foreground truncate block max-w-[140px]">{form.registerNo || "Pending Reg No"}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Field label="Gender" required>
               <select value={form.gender} onChange={e => set('gender', e.target.value)} className={inputCls}>
                 <option value="Male">Male</option>

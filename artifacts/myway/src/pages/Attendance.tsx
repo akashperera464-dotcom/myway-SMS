@@ -2,8 +2,9 @@ import { useState } from "react";
 import { getClasses, getStudents, getAttendanceForDate, saveAttendance } from "@/lib/storage";
 import { formatDate, generateId } from "@/lib/utils";
 import type { AttendanceRecord } from "@/lib/types";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, QrCode, ListFilter } from "lucide-react";
 import { Link } from "wouter";
+import QrAttendanceScanner from "@/components/QrAttendanceScanner";
 
 const STATUS_OPTIONS = ['Present', 'Absent', 'Late', 'Excused'] as const;
 type AttStatus = typeof STATUS_OPTIONS[number];
@@ -21,6 +22,7 @@ export default function Attendance() {
   const [selectedDate, setSelectedDate] = useState(today);
   const [records, setRecords] = useState<Record<string, AttStatus>>({});
   const [saved, setSaved] = useState(false);
+  const [mode, setMode] = useState<'manual' | 'qr'>('manual');
   const [, forceUpdate] = useState(0);
 
   const classes = getClasses().filter(c => c.status === 'Active');
@@ -124,6 +126,31 @@ export default function Attendance() {
             className="px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
+
+        {cls && (
+          <div className="ml-auto flex items-center gap-1.5 bg-muted/60 p-1 rounded-lg border border-border">
+            <button
+              onClick={() => setMode('manual')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                mode === 'manual'
+                  ? 'bg-card text-foreground shadow-xs border border-border'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <ListFilter className="w-3.5 h-3.5" /> Manual Roster
+            </button>
+            <button
+              onClick={() => setMode('qr')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                mode === 'qr'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <QrCode className="w-3.5 h-3.5" /> 📷 QR Scanner Mode
+            </button>
+          </div>
+        )}
       </div>
 
       {cls && (
@@ -144,68 +171,77 @@ export default function Attendance() {
             </div>
           </div>
 
-          {/* Mark All */}
-          <div className="bg-card border border-border rounded-xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-semibold text-foreground">{cls.name}</h3>
-                <p className="text-xs text-muted-foreground">{formatDate(selectedDate)} · {enrolledStudents.length} students</p>
+          {mode === 'qr' ? (
+            <QrAttendanceScanner
+              activeClass={cls}
+              allStudents={allStudents}
+              onMarkAttendance={(studentId, status) => setStatus(studentId, status)}
+              attendanceRecords={records}
+            />
+          ) : (
+            /* Mark All & Manual Roster */
+            <div className="bg-card border border-border rounded-xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-foreground">{cls.name}</h3>
+                  <p className="text-xs text-muted-foreground">{formatDate(selectedDate)} · {enrolledStudents.length} students</p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-muted-foreground">Mark All:</span>
+                  {STATUS_OPTIONS.map(s => (
+                    <button
+                      key={s}
+                      data-testid={`mark-all-${s.toLowerCase()}`}
+                      onClick={() => markAll(s)}
+                      className={`px-3 py-1 text-xs rounded-full border font-medium transition-colors hover:opacity-80 ${STATUS_COLORS[s]}`}
+                    >{s}</button>
+                  ))}
+                </div>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-muted-foreground">Mark All:</span>
-                {STATUS_OPTIONS.map(s => (
-                  <button
-                    key={s}
-                    data-testid={`mark-all-${s.toLowerCase()}`}
-                    onClick={() => markAll(s)}
-                    className={`px-3 py-1 text-xs rounded-full border font-medium transition-colors hover:opacity-80 ${STATUS_COLORS[s]}`}
-                  >{s}</button>
+
+              <div className="space-y-2">
+                {enrolledStudents.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">No students enrolled in this class.</p>
+                ) : enrolledStudents.map(s => (
+                  <div key={s.id} data-testid={`att-row-${s.id}`} className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-muted/30 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold flex-shrink-0">
+                        {s.fullName.charAt(0)}
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-foreground">{s.fullName}</div>
+                        <div className="text-xs text-muted-foreground">{s.studentId} · {s.school}</div>
+                      </div>
+                    </div>
+                    <div className="flex gap-1.5">
+                      {STATUS_OPTIONS.map(status => (
+                        <button
+                          key={status}
+                          data-testid={`att-${s.id}-${status.toLowerCase()}`}
+                          onClick={() => setStatus(s.id, status)}
+                          className={`px-3 py-1 text-xs rounded-full border font-medium transition-all ${records[s.id] === status ? STATUS_COLORS[status] + ' ring-2 ring-offset-1 ring-current' : 'bg-background text-muted-foreground border-input hover:bg-muted'}`}
+                        >{status}</button>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
-            </div>
 
-            <div className="space-y-2">
-              {enrolledStudents.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No students enrolled in this class.</p>
-              ) : enrolledStudents.map(s => (
-                <div key={s.id} data-testid={`att-row-${s.id}`} className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-muted/30 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold flex-shrink-0">
-                      {s.fullName.charAt(0)}
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-foreground">{s.fullName}</div>
-                      <div className="text-xs text-muted-foreground">{s.studentId} · {s.school}</div>
-                    </div>
-                  </div>
-                  <div className="flex gap-1.5">
-                    {STATUS_OPTIONS.map(status => (
-                      <button
-                        key={status}
-                        data-testid={`att-${s.id}-${status.toLowerCase()}`}
-                        onClick={() => setStatus(s.id, status)}
-                        className={`px-3 py-1 text-xs rounded-full border font-medium transition-all ${records[s.id] === status ? STATUS_COLORS[status] + ' ring-2 ring-offset-1 ring-current' : 'bg-background text-muted-foreground border-input hover:bg-muted'}`}
-                      >{status}</button>
-                    ))}
-                  </div>
+              <div className="mt-4 flex items-center justify-between">
+                {saved && <span className="text-sm text-green-600 font-medium">Attendance saved successfully!</span>}
+                <div className="ml-auto">
+                  <button
+                    data-testid="save-attendance-btn"
+                    onClick={handleSave}
+                    disabled={enrolledStudents.length === 0}
+                    className="px-6 py-2 bg-primary text-primary-foreground text-sm rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                  >
+                    Save Attendance
+                  </button>
                 </div>
-              ))}
-            </div>
-
-            <div className="mt-4 flex items-center justify-between">
-              {saved && <span className="text-sm text-green-600 font-medium">Attendance saved successfully!</span>}
-              <div className="ml-auto">
-                <button
-                  data-testid="save-attendance-btn"
-                  onClick={handleSave}
-                  disabled={enrolledStudents.length === 0}
-                  className="px-6 py-2 bg-primary text-primary-foreground text-sm rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-                >
-                  Save Attendance
-                </button>
               </div>
             </div>
-          </div>
+          )}
         </>
       )}
 

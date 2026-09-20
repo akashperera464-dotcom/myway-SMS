@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
-import { ArrowLeft, Phone, MessageCircle, Mail, Edit, Save, X } from "lucide-react";
+import { ArrowLeft, Phone, MessageCircle, Mail, Edit, Save, X, QrCode, Printer } from "lucide-react";
 import { getStudent, saveStudent, getClasses, getTeachers, getPaymentsForStudent, getResultsForStudent, getAttendance } from "@/lib/storage";
 import { formatCurrency, formatDate, getGrade, getGradeColor, GRADES, SL_DISTRICTS, SL_PROVINCES } from "@/lib/utils";
 import type { Student } from "@/lib/types";
+import { QRCodeSVG } from "qrcode.react";
+import { generateStudentQrPayload } from "@/lib/qrUtils";
+import StudentIdCardModal from "@/components/StudentIdCardModal";
 
 const inputCls = "w-full px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring";
 const STATUS_COLORS: Record<string, string> = { Active: "bg-green-100 text-green-700", Inactive: "bg-gray-100 text-gray-600", Graduated: "bg-blue-100 text-blue-700", Suspended: "bg-red-100 text-red-700" };
@@ -11,6 +14,7 @@ const PAY_COLORS: Record<string, string> = { Paid: "bg-green-100 text-green-700"
 
 export default function StudentProfile({ params }: { params: { id: string } }) {
   const [editing, setEditing] = useState(false);
+  const [showIdCard, setShowIdCard] = useState(false);
   const [, forceUpdate] = useState(0);
 
   const student = getStudent(params.id);
@@ -50,6 +54,8 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
     setForm(f => f ? { ...f, classIds: ids } : f);
   };
 
+  const qrPayload = generateStudentQrPayload(student.studentId || student.registerNo || student.id);
+
   return (
     <div className="max-w-4xl space-y-5">
       <div className="flex items-center justify-between">
@@ -61,6 +67,12 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
           </div>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => setShowIdCard(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 border border-border bg-card rounded-lg text-sm font-medium hover:bg-muted transition-colors"
+          >
+            <Printer className="w-4 h-4 text-primary" /> View & Print ID Card
+          </button>
           {editing ? (
             <>
               <button onClick={() => { setForm(student); setEditing(false); }} className="flex items-center gap-1.5 px-4 py-2 border border-border rounded-lg text-sm hover:bg-muted"><X className="w-4 h-4" /> Cancel</button>
@@ -207,6 +219,22 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
         </div>
 
         <div className="space-y-5">
+          <div className="bg-card border border-border rounded-xl p-5 text-center space-y-3">
+            <h4 className="font-semibold text-foreground flex items-center justify-center gap-1.5 text-sm">
+              <QrCode className="w-4 h-4 text-primary" /> Student QR Pass
+            </h4>
+            <div className="bg-white p-3 rounded-xl border border-border inline-block shadow-sm">
+              <QRCodeSVG value={qrPayload} size={110} level="H" />
+            </div>
+            <p className="text-xs text-muted-foreground font-mono">{student.studentId}</p>
+            <button
+              onClick={() => setShowIdCard(true)}
+              className="w-full py-2 px-3 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5"
+            >
+              <Printer className="w-3.5 h-3.5" /> Digital ID Card & Print
+            </button>
+          </div>
+
           <div className="bg-card border border-border rounded-xl p-5">
             <h4 className="font-semibold text-foreground mb-3">Enrolled Classes</h4>
             {studentClasses.length === 0 ? <p className="text-sm text-muted-foreground">Not enrolled.</p> : studentClasses.map(c => {
@@ -221,6 +249,7 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
               );
             })}
           </div>
+
           <div className="bg-card border border-border rounded-xl p-5">
             <h4 className="font-semibold text-foreground mb-3">Attendance Summary</h4>
             <div className="text-3xl font-bold text-primary">{attRate}%</div>
@@ -231,6 +260,12 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
           </div>
         </div>
       </div>
+
+      <StudentIdCardModal
+        student={student}
+        isOpen={showIdCard}
+        onClose={() => setShowIdCard(false)}
+      />
     </div>
   );
 }
