@@ -257,7 +257,13 @@ export function initFirestoreSync() {
         const colRef = collection(db, colName);
         onSnapshot(colRef, (snapshot) => {
           if (!snapshot.empty) {
-            const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+            // Normalize user records coming from Firestore so corrupted field names
+            // (e.g. "name" instead of "fullName") never reach the UI layer.
+            const items = snapshot.docs.map(d => {
+              const data = { ...d.data(), id: d.id };
+              if (key === KEYS.users) return normalizeUser(data);
+              return data;
+            });
             saveList(key, items);
             notifyDataUpdated(key);
           } else {
@@ -547,9 +553,38 @@ export const getNextReceiptNo = (): string => {
 };
 
 // ─── Users ───────────────────────────────────────────────────────────────────
-export const getUsers = (): AppUser[] => getList<AppUser>(KEYS.users);
+// Firestore documents may have inconsistent field names (e.g. "name" instead of "fullName",
+// "email" instead of "username", or trailing whitespace in keys). This helper normalizes any
+// user-shaped object into a strict AppUser so downstream code can safely read fields like
+// `u.fullName.charAt(0)` without crashing.
+function normalizeUser(raw: any): AppUser {
+  const id: string = String(raw?.id ?? generateId());
+  const username: string =
+    String(raw?.username ?? raw?.email ?? raw?.['username '] ?? '').trim();
+  const fullName: string =
+    String(raw?.fullName ?? raw?.name ?? raw?.['fullName '] ?? raw?.username ?? raw?.email ?? 'Unknown').trim();
+  const role = raw?.role as AppUser['role'] | undefined;
+  const status = raw?.status as AppUser['status'] | undefined;
+  const password: string = String(raw?.password ?? raw?.['password '] ?? '');
+  const photo: string | undefined = raw?.photo ?? raw?.avatar ?? undefined;
+  return {
+    id,
+    username: username || fullName,
+    fullName: fullName || username || 'Unknown',
+    role: role && ['Super Admin', 'Owner', 'Operations Staff', 'Teacher', 'Student'].includes(role)
+      ? role
+      : 'Teacher',
+    status: status === 'Active' || status === 'Inactive' ? status : 'Active',
+    password,
+    ...(photo ? { photo } : {}),
+  };
+}
+
+export const getUsers = (): AppUser[] => getList<AppUser>(KEYS.users).map(normalizeUser);
 export const getUser = (username: string, password: string): AppUser | undefined =>
-  getList<AppUser>(KEYS.users).find(u => u.username === username && u.password === password && u.status === 'Active');
+  getList<AppUser>(KEYS.users)
+    .map(normalizeUser)
+    .find(u => u.username === username && u.password === password && u.status === 'Active');
 
 export const addUser = (u: Omit<AppUser, 'id'>): AppUser => {
   const newUser: AppUser = { ...u, id: generateId() };

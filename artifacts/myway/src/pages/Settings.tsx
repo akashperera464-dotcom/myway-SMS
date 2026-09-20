@@ -161,11 +161,11 @@ export default function Settings() {
             <div key={u.id} className="flex flex-wrap items-center justify-between gap-2 p-3 border border-border rounded-lg">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground flex-shrink-0">
-                  {u.fullName.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase()}
+                  {(u.fullName || u.username || 'U').split(" ").map(w => w[0] || '').slice(0, 2).join("").toUpperCase() || 'U'}
                 </div>
                 <div className="min-w-0">
-                  <div className="font-medium text-sm text-foreground truncate">{u.fullName}</div>
-                  <div className="text-xs text-muted-foreground truncate">{u.username}</div>
+                  <div className="font-medium text-sm text-foreground truncate">{u.fullName || 'Unknown'}</div>
+                  <div className="text-xs text-muted-foreground truncate">{u.username || '—'}</div>
                 </div>
               </div>
 

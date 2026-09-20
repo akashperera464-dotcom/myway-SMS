@@ -129,19 +129,19 @@ export default function Users() {
             <div className="flex items-start gap-4 mb-4 pl-2">
               <div className="w-12 h-12 rounded-xl bg-secondary/20 text-secondary flex items-center justify-center text-lg font-bold flex-shrink-0 relative overflow-hidden">
                 {u.photo ? (
-                  <img src={u.photo} alt={u.fullName} className="w-full h-full object-cover" />
+                  <img src={u.photo} alt={u.fullName || 'User'} className="w-full h-full object-cover" />
                 ) : (
-                  u.fullName.charAt(0)
+                  (u.fullName || '?').charAt(0).toUpperCase()
                 )}
               </div>
               <div className="flex-1">
                 <h3 className="font-bold text-foreground leading-tight flex items-center gap-2">
-                  {u.fullName} 
+                  {u.fullName || u.username || 'Unknown'} 
                   {u.id === currentUser?.id && <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">You</span>}
                 </h3>
                 <div className="flex items-center gap-1.5 mt-1">
                   {getRoleIcon(u.role)}
-                  <span className="text-xs font-medium text-muted-foreground">{u.role}</span>
+                  <span className="text-xs font-medium text-muted-foreground">{u.role || 'Unknown'}</span>
                 </div>
               </div>
             </div>
