@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { LayoutDashboard, Users, CalendarCheck, CreditCard, Menu as MenuIcon } from "lucide-react";
 import Sidebar from "./Sidebar";
@@ -13,6 +13,18 @@ export default function Layout({ children }: LayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [location] = useLocation();
+  const [vh, setVh] = useState(window.innerHeight);
+
+  useEffect(() => {
+    const update = () => setVh(window.innerHeight);
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
+  }, []);
 
   const mobileNavItems = [
     { path: "/", label: "Home", icon: LayoutDashboard },
@@ -21,26 +33,40 @@ export default function Layout({ children }: LayoutProps) {
     { path: "/payments", label: "Payments", icon: CreditCard },
   ];
 
+  const BOTTOM_NAV_HEIGHT = 60;
+
   return (
-    <div className="flex h-screen h-[100dvh] min-h-[100dvh] w-full overflow-hidden bg-background">
+    <div
+      style={{ height: `${vh}px`, width: "100%", display: "flex", flexDirection: "row", overflow: "hidden", position: "relative" }}
+      className="bg-background"
+    >
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-opacity"
+          style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.6)" }}
           onClick={() => setMobileOpen(false)}
+          className="lg:hidden"
         />
       )}
 
-      {/* Sidebar - desktop */}
+      {/* Sidebar - desktop only */}
       <div className="hidden lg:flex h-full flex-shrink-0">
         <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(v => !v)} />
       </div>
 
       {/* Sidebar - mobile drawer */}
-      <div className={cn(
-        "fixed inset-y-0 left-0 z-50 lg:hidden transition-transform duration-300 shadow-2xl h-full",
-        mobileOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          bottom: 0,
+          zIndex: 50,
+          transform: mobileOpen ? "translateX(0)" : "translateX(-100%)",
+          transition: "transform 0.3s ease",
+        }}
+        className="lg:hidden shadow-2xl"
+      >
         <Sidebar
           collapsed={false}
           onToggle={() => setMobileOpen(false)}
@@ -48,16 +74,39 @@ export default function Layout({ children }: LayoutProps) {
         />
       </div>
 
-      {/* Main content container */}
-      <div className="flex flex-col flex-1 min-w-0 w-full h-full overflow-hidden relative">
+      {/* Main content */}
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", height: `${vh}px`, overflow: "hidden" }}>
         <Header onMenuToggle={() => setMobileOpen(v => !v)} />
 
-        <main className="flex-1 min-h-0 w-full overflow-y-auto p-3 sm:p-4 md:p-6 pb-24 lg:pb-6">
+        {/* Scrollable page content */}
+        <div
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            overflowX: "hidden",
+            paddingBottom: `${BOTTOM_NAV_HEIGHT + 8}px`,
+            WebkitOverflowScrolling: "touch",
+          }}
+          className="p-3 sm:p-4 md:p-6 lg:pb-6"
+        >
           {children}
-        </main>
+        </div>
 
-        {/* Mobile Bottom Navigation Bar for PWA */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-card/95 backdrop-blur border-t border-border flex items-center justify-around px-2 py-2 safe-area-bottom shadow-lg">
+        {/* Mobile Bottom Navigation Bar */}
+        <div
+          style={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: `${BOTTOM_NAV_HEIGHT}px`,
+            zIndex: 30,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-around",
+          }}
+          className="lg:hidden bg-card border-t border-border shadow-lg"
+        >
           {mobileNavItems.map(({ path, label, icon: Icon }) => {
             const active = (path === "/" && (location === "/" || location === "/index.html")) || (path !== "/" && location.startsWith(path));
             return (
@@ -65,14 +114,13 @@ export default function Layout({ children }: LayoutProps) {
                 key={path}
                 href={path}
                 onClick={() => setMobileOpen(false)}
+                style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "4px 2px", textDecoration: "none", cursor: "pointer" }}
                 className={cn(
-                  "flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl text-[11px] font-medium transition-colors cursor-pointer",
-                  active
-                    ? "text-primary font-bold"
-                    : "text-muted-foreground hover:text-foreground"
+                  "text-[11px] font-medium transition-colors",
+                  active ? "text-primary" : "text-muted-foreground"
                 )}
               >
-                <Icon className={cn("w-5 h-5 mb-0.5", active && "scale-110 text-primary")} />
+                <Icon style={{ width: 20, height: 20, marginBottom: 2 }} />
                 <span>{label}</span>
               </Link>
             );
@@ -80,12 +128,13 @@ export default function Layout({ children }: LayoutProps) {
 
           <button
             onClick={() => setMobileOpen(v => !v)}
+            style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "4px 2px", background: "none", border: "none", cursor: "pointer" }}
             className={cn(
-              "flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl text-[11px] font-medium transition-colors",
-              mobileOpen ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground"
+              "text-[11px] font-medium transition-colors",
+              mobileOpen ? "text-primary" : "text-muted-foreground"
             )}
           >
-            <MenuIcon className="w-5 h-5 mb-0.5" />
+            <MenuIcon style={{ width: 20, height: 20, marginBottom: 2 }} />
             <span>Menu</span>
           </button>
         </div>

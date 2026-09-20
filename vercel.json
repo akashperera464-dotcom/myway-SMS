@@ -1,4 +1,7 @@
 {
+  "buildCommand": "cd artifacts/myway && npm run build",
+  "outputDirectory": "artifacts/myway/dist/public",
+  "installCommand": "npm install --prefix artifacts/myway",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
