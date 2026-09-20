@@ -33,14 +33,16 @@ const bottomNavItems = [
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  onNavItemClick?: () => void;
 }
 
-export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export default function Sidebar({ collapsed, onToggle, onNavItemClick }: SidebarProps) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
   const settings = getSettings();
 
   const handleLogout = () => {
+    if (onNavItemClick) onNavItemClick();
     setSessionUser(null);
     logout();
   };
@@ -92,6 +94,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <Link
               key={path}
               href={path}
+              onClick={() => onNavItemClick?.()}
               data-testid={`nav-${label.toLowerCase().replace(/\s/g, '-')}`}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 cursor-pointer group relative",
@@ -125,6 +128,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <Link
               key={path}
               href={path}
+              onClick={() => onNavItemClick?.()}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 cursor-pointer",
                 collapsed && "justify-center",

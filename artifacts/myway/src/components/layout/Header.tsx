@@ -59,9 +59,9 @@ export default function Header({ onMenuToggle }: HeaderProps) {
       </button>
 
       {/* Page title */}
-      <div className="hidden sm:block">
-        <h1 className="text-base font-bold text-foreground tracking-tight">{getTitle()}</h1>
-        <p className="text-[11px] text-muted-foreground">{today}</p>
+      <div className="block flex-1 sm:flex-none min-w-0">
+        <h1 className="text-sm sm:text-base font-bold text-foreground tracking-tight truncate">{getTitle()}</h1>
+        <p className="text-[10px] sm:text-[11px] text-muted-foreground hidden sm:block">{today}</p>
       </div>
 
       {/* Search */}

@@ -216,7 +216,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── Stat Cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           title="Active Students"
           value={activeStudents.length}
@@ -254,7 +254,7 @@ export default function Dashboard() {
       {/* ── Charts Row ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Bar chart */}
-        <div className="lg:col-span-2 bg-card border border-border rounded-2xl p-5">
+        <div className="lg:col-span-2 bg-card border border-border rounded-2xl p-4 sm:p-5 min-w-0">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-bold text-foreground text-sm">Fee Collection Overview</h3>
@@ -264,16 +264,18 @@ export default function Dashboard() {
               Details <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={feeChartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }} barGap={4}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(215 30% 14%)" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(215 20% 52%)" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: "hsl(215 20% 52%)" }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(215 30% 14% / 0.5)" }} />
-              <Bar dataKey="collected" fill="hsl(176,100%,44%)" radius={[6, 6, 0, 0]} name="Collected" />
-              <Bar dataKey="pending" fill="hsl(43,100%,54%)" radius={[6, 6, 0, 0]} name="Pending" />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="w-full min-w-0 h-[200px]">
+            <ResponsiveContainer width="100%" height={200} minWidth={0} minHeight={200}>
+              <BarChart data={feeChartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }} barGap={4}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(215 30% 14%)" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(215 20% 52%)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "hsl(215 20% 52%)" }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(215 30% 14% / 0.5)" }} />
+                <Bar dataKey="collected" fill="hsl(176,100%,44%)" radius={[6, 6, 0, 0]} name="Collected" />
+                <Bar dataKey="pending" fill="hsl(43,100%,54%)" radius={[6, 6, 0, 0]} name="Pending" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
           <div className="flex gap-4 mt-2">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="w-2.5 h-2.5 rounded-full bg-primary inline-block" /> Collected
@@ -285,30 +287,32 @@ export default function Dashboard() {
         </div>
 
         {/* Pie chart - grade distribution */}
-        <div className="bg-card border border-border rounded-2xl p-5">
+        <div className="bg-card border border-border rounded-2xl p-4 sm:p-5 min-w-0">
           <div className="mb-3">
             <h3 className="font-bold text-foreground text-sm">Students by Grade</h3>
             <p className="text-xs text-muted-foreground">Distribution overview</p>
           </div>
           {pieData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={180}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={75}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {pieData.map((_, index) => (
-                    <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="w-full min-w-0 h-[180px]">
+              <ResponsiveContainer width="100%" height={180} minWidth={0} minHeight={180}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={75}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {pieData.map((_, index) => (
+                      <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           ) : (
             <div className="h-[180px] flex items-center justify-center text-sm text-muted-foreground">
               No data yet
