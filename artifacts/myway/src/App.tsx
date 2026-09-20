@@ -199,6 +199,9 @@ function AppRoutes() {
         <Route path="/">
           {user.role === 'Teacher' ? <TeacherDashboard /> : <Dashboard />}
         </Route>
+        <Route path="/index.html">
+          {user.role === 'Teacher' ? <TeacherDashboard /> : <Dashboard />}
+        </Route>
         <Route path="/students" component={Students} />
         <Route path="/students/new" component={StudentNew} />
         <Route path="/students/:id" component={StudentProfile} />

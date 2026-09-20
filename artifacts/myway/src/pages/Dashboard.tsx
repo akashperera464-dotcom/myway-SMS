@@ -129,24 +129,24 @@ function CustomTooltip({ active, payload, label }: any) {
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user } = useAuth();
-  const students = getStudents();
-  const classes = getClasses();
-  const payments = getPayments();
-  const attendance = getAttendance();
-  const notices = getNotices();
-  const teachers = getTeachers();
+  const students = getStudents() || [];
+  const classes = getClasses() || [];
+  const payments = getPayments() || [];
+  const attendance = getAttendance() || [];
+  const notices = getNotices() || [];
+  const teachers = getTeachers() || [];
 
   const currentMonth = getCurrentMonth();
-  const activeStudents = students.filter(s => s.status === "Active");
-  const activeClasses = classes.filter(c => c.status === "Active");
+  const activeStudents = students.filter(s => s?.status === "Active");
+  const activeClasses = classes.filter(c => c?.status === "Active");
 
-  const thisMonthPayments = payments.filter(p => p.month === currentMonth && p.status === "Paid");
-  const pendingPayments = payments.filter(p => p.month === currentMonth && p.status === "Pending");
-  const totalCollected = thisMonthPayments.reduce((sum, p) => sum + p.amount, 0);
+  const thisMonthPayments = payments.filter(p => p?.month === currentMonth && p?.status === "Paid");
+  const pendingPayments = payments.filter(p => p?.month === currentMonth && p?.status === "Pending");
+  const totalCollected = thisMonthPayments.reduce((sum, p) => sum + (Number(p?.amount) || 0), 0);
 
   const recent = attendance.slice(-10);
-  const totalPresent = recent.reduce((sum, a) => sum + a.records.filter(r => r.status === "Present").length, 0);
-  const totalRecords = recent.reduce((sum, a) => sum + a.records.length, 0);
+  const totalPresent = recent.reduce((sum, a) => sum + (a?.records ? a.records.filter(r => r?.status === "Present").length : 0), 0);
+  const totalRecords = recent.reduce((sum, a) => sum + (a?.records ? a.records.length : 0), 0);
   const attendanceRate = totalRecords > 0 ? Math.round((totalPresent / totalRecords) * 100) : 0;
 
   // Fee chart - last 6 months
@@ -155,18 +155,18 @@ export default function Dashboard() {
     d.setMonth(d.getMonth() - (5 - i));
     const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     const collected = payments
-      .filter(p => p.month === month && p.status === "Paid")
-      .reduce((s, p) => s + p.amount, 0);
+      .filter(p => p?.month === month && p?.status === "Paid")
+      .reduce((s, p) => s + (Number(p?.amount) || 0), 0);
     const pending = payments
-      .filter(p => p.month === month && p.status === "Pending")
-      .reduce((s, p) => s + p.amount, 0);
+      .filter(p => p?.month === month && p?.status === "Pending")
+      .reduce((s, p) => s + (Number(p?.amount) || 0), 0);
     return { month: d.toLocaleString("en", { month: "short" }), collected, pending };
   });
 
   // Grade distribution for pie chart
   const gradeCount: Record<string, number> = {};
   students.forEach(s => {
-    const g = s.grade.split(" ").slice(0, 2).join(" ");
+    const g = (s?.grade || "Other").split(" ").slice(0, 2).join(" ");
     gradeCount[g] = (gradeCount[g] || 0) + 1;
   });
   const pieData = Object.entries(gradeCount)
@@ -176,11 +176,11 @@ export default function Dashboard() {
 
   // Recent payments
   const recentPayments = payments
-    .filter(p => p.status === "Paid")
-    .sort((a, b) => b.paidDate.localeCompare(a.paidDate))
+    .filter(p => p?.status === "Paid")
+    .sort((a, b) => (b?.paidDate || "").localeCompare(a?.paidDate || ""))
     .slice(0, 5);
 
-  const firstName = user?.fullName?.split(" ")[0] || "Admin";
+  const firstName = user?.fullName ? user.fullName.split(" ")[0] : "Admin";
 
   return (
     <div className="space-y-5">

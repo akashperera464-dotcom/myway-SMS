@@ -41,12 +41,17 @@ export default function Header({ onMenuToggle }: HeaderProps) {
     weekday: "long", day: "numeric", month: "long", year: "numeric"
   });
 
-  const initials = user?.fullName
-    ? user.fullName.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase()
-    : "??";
+  const initials = (user?.fullName || "User")
+    .trim()
+    .split(/\s+/)
+    .map(w => w[0] || "")
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "U";
 
   return (
-    <header className="bg-card border-b border-border px-4 py-3 flex items-center gap-3 flex-shrink-0 relative">
+    <header className="bg-card border-b border-border px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3 flex-shrink-0 w-full relative z-20">
       {/* Subtle top glow line */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
 

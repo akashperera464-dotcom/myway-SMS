@@ -64,17 +64,17 @@ export default function Sidebar({ collapsed, onToggle, onNavItemClick }: Sidebar
         collapsed ? "px-3 py-5 justify-center" : "px-5 py-5 gap-3"
       )}>
         <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center flex-shrink-0 glow-teal overflow-hidden">
-          {settings.logo ? (
+          {settings?.logo ? (
             <img src={settings.logo} alt="Logo" className="w-full h-full object-cover" />
           ) : (
             <span className="text-primary-foreground font-black text-sm tracking-tight">
-              {settings.name.substring(0, 2).toUpperCase()}
+              {(settings?.name || "MYWAY").substring(0, 2).toUpperCase()}
             </span>
           )}
         </div>
         {!collapsed && (
           <div>
-            <div className="font-extrabold text-sm tracking-widest text-white uppercase truncate max-w-[140px]">{settings.name}</div>
+            <div className="font-extrabold text-sm tracking-widest text-white uppercase truncate max-w-[140px]">{settings?.name || "MYWAY"}</div>
             <div className="text-[10px] text-sidebar-foreground/50 tracking-wide">Educational Institute</div>
           </div>
         )}

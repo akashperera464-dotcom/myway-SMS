@@ -22,7 +22,7 @@ export default function Layout({ children }: LayoutProps) {
   ];
 
   return (
-    <div className="flex h-screen h-[100dvh] min-h-[100dvh] overflow-hidden bg-background">
+    <div className="flex h-screen h-[100dvh] min-h-[100dvh] w-full overflow-hidden bg-background">
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
@@ -32,13 +32,13 @@ export default function Layout({ children }: LayoutProps) {
       )}
 
       {/* Sidebar - desktop */}
-      <div className="hidden lg:flex">
+      <div className="hidden lg:flex h-full flex-shrink-0">
         <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(v => !v)} />
       </div>
 
       {/* Sidebar - mobile drawer */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 lg:hidden transition-transform duration-300 shadow-2xl",
+        "fixed inset-y-0 left-0 z-50 lg:hidden transition-transform duration-300 shadow-2xl h-full",
         mobileOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <Sidebar
@@ -49,24 +49,24 @@ export default function Layout({ children }: LayoutProps) {
       </div>
 
       {/* Main content container */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden relative">
+      <div className="flex flex-col flex-1 min-w-0 w-full h-full overflow-hidden relative">
         <Header onMenuToggle={() => setMobileOpen(v => !v)} />
 
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 pb-20 lg:pb-6">
+        <main className="flex-1 min-h-0 w-full overflow-y-auto p-3 sm:p-4 md:p-6 pb-24 lg:pb-6">
           {children}
         </main>
 
         {/* Mobile Bottom Navigation Bar for PWA */}
         <div className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-card/95 backdrop-blur border-t border-border flex items-center justify-around px-2 py-2 safe-area-bottom shadow-lg">
           {mobileNavItems.map(({ path, label, icon: Icon }) => {
-            const active = path === "/" ? location === "/" : location.startsWith(path);
+            const active = (path === "/" && (location === "/" || location === "/index.html")) || (path !== "/" && location.startsWith(path));
             return (
               <Link
                 key={path}
                 href={path}
                 onClick={() => setMobileOpen(false)}
                 className={cn(
-                  "flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl text-[11px] font-medium transition-colors",
+                  "flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl text-[11px] font-medium transition-colors cursor-pointer",
                   active
                     ? "text-primary font-bold"
                     : "text-muted-foreground hover:text-foreground"
