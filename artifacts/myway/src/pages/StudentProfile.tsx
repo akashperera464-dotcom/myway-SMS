@@ -54,7 +54,7 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
     setForm(f => f ? { ...f, classIds: ids } : f);
   };
 
-  const qrPayload = generateStudentQrPayload(student.studentId || student.registerNo || student.id);
+  const qrPayload = generateStudentQrPayload(student.id);
 
   return (
     <div className="max-w-4xl space-y-5">

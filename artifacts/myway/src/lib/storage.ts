@@ -19,7 +19,10 @@ export const KEYS = {
   subjects: 'myway_subjects',
   teacherPayments: 'myway_teacher_payments',
   expenses: 'myway_expenses',
+  pendingAttendanceWrites: 'myway_pending_attendance_writes',
 };
+
+type AttendancePatchRecord = AttendanceRecord['records'][number];
 
 function getList<T>(key: string): T[] {
   try {
@@ -59,6 +62,51 @@ function saveOne<T>(key: string, val: T): void {
 function cleanDoc<T>(obj: T): Record<string, unknown> {
   return JSON.parse(JSON.stringify(obj));
 }
+
+function attendanceKey(classId: string, date: string, sessionId = 'default') {
+  return classId + '_' + date + '_' + sessionId;
+}
+
+function getAttendanceSessionId(a: Pick<AttendanceRecord, 'sessionId'>) {
+  return a.sessionId || 'default';
+}
+
+function queuePendingAttendance(record: AttendanceRecord) {
+  const pending = getList<AttendanceRecord>(KEYS.pendingAttendanceWrites).filter(a => a.id !== record.id);
+  saveList(KEYS.pendingAttendanceWrites, [...pending, record]);
+}
+
+function removePendingAttendance(id: string) {
+  saveList(KEYS.pendingAttendanceWrites, getList<AttendanceRecord>(KEYS.pendingAttendanceWrites).filter(a => a.id !== id));
+}
+
+function mergeAttendanceRecord(existing: AttendanceRecord | undefined, patch: AttendanceRecord): AttendanceRecord {
+  const recordMap = new Map<string, AttendancePatchRecord>();
+  existing?.records.forEach(r => recordMap.set(r.studentId, r));
+  patch.records.forEach(r => recordMap.set(r.studentId, { ...recordMap.get(r.studentId), ...r }));
+  return {
+    ...existing,
+    ...patch,
+    id: existing?.id || patch.id,
+    sessionId: patch.sessionId || existing?.sessionId || 'default',
+    sessionName: patch.sessionName || existing?.sessionName,
+    records: Array.from(recordMap.values()),
+    updatedAt: patch.updatedAt || new Date().toISOString(),
+  };
+}
+
+function flushPendingAttendanceWrites() {
+  const pending = getList<AttendanceRecord>(KEYS.pendingAttendanceWrites);
+  if (pending.length === 0) return;
+  ensureFirebaseAuth().then(() => {
+    pending.forEach(record => {
+      setDoc(doc(db, 'attendance', record.id), cleanDoc(record), { merge: true })
+        .then(() => removePendingAttendance(record.id))
+        .catch(() => queuePendingAttendance(record));
+    });
+  }).catch(console.error);
+}
+
 
 export function notifyDataUpdated(key: string) {
   if (typeof window !== 'undefined') {
@@ -259,11 +307,21 @@ export function initFirestoreSync() {
           if (!snapshot.empty) {
             // Normalize user records coming from Firestore so corrupted field names
             // (e.g. "name" instead of "fullName") never reach the UI layer.
-            const items = snapshot.docs.map(d => {
+            let items = snapshot.docs.map(d => {
               const data = { ...d.data(), id: d.id };
               if (key === KEYS.users) return normalizeUser(data);
               return data;
             });
+            if (key === KEYS.attendance) {
+              const pending = getList<AttendanceRecord>(KEYS.pendingAttendanceWrites);
+              items = (items as AttendanceRecord[]).map(remote => {
+                const pendingMatch = pending.find(p => p.id === remote.id);
+                return pendingMatch ? mergeAttendanceRecord(remote, pendingMatch) : remote;
+              });
+              pending
+                .filter(p => !(items as AttendanceRecord[]).some(remote => remote.id === p.id))
+                .forEach(p => (items as AttendanceRecord[]).push(p));
+            }
             saveList(key, items);
             notifyDataUpdated(key);
           } else {
@@ -313,6 +371,7 @@ export function initFirestoreSync() {
 // Auto-run sync in browser
 if (typeof window !== 'undefined') {
   initFirestoreSync();
+  window.addEventListener('online', flushPendingAttendanceWrites);
 }
 
 // ─── Students ────────────────────────────────────────────────────────────────
@@ -416,15 +475,43 @@ export const addTeacher = (t: Omit<Teacher, 'id'>): Teacher => {
 // ─── Attendance ──────────────────────────────────────────────────────────────
 export const getAttendance = (): AttendanceRecord[] => getList<AttendanceRecord>(KEYS.attendance);
 export const getAttendanceForClass = (classId: string): AttendanceRecord[] => getList<AttendanceRecord>(KEYS.attendance).filter(a => a.classId === classId);
-export const getAttendanceForDate = (classId: string, date: string): AttendanceRecord | undefined => getList<AttendanceRecord>(KEYS.attendance).find(a => a.classId === classId && a.date === date);
+export const getAttendanceForDate = (classId: string, date: string, sessionId = 'default'): AttendanceRecord | undefined =>
+  getList<AttendanceRecord>(KEYS.attendance).find(a => a.classId === classId && a.date === date && getAttendanceSessionId(a) === sessionId);
 
 export const saveAttendance = (a: AttendanceRecord): void => {
-  const list = getList<AttendanceRecord>(KEYS.attendance).filter(x => x.id !== a.id);
-  saveList(KEYS.attendance, [...list, a]);
+  const next = { ...a, sessionId: a.sessionId || 'default', updatedAt: new Date().toISOString() };
+  const list = getList<AttendanceRecord>(KEYS.attendance).filter(x => x.id !== next.id);
+  saveList(KEYS.attendance, [...list, next]);
   notifyDataUpdated(KEYS.attendance);
   ensureFirebaseAuth().then(() => {
-    setDoc(doc(db, 'attendance', a.id), cleanDoc(a)).catch(console.error);
-  });
+    setDoc(doc(db, 'attendance', next.id), cleanDoc(next), { merge: true })
+      .then(() => removePendingAttendance(next.id))
+      .catch(() => queuePendingAttendance(next));
+  }).catch(() => queuePendingAttendance(next));
+};
+
+export const upsertAttendanceRecord = (
+  classId: string,
+  date: string,
+  sessionId: string,
+  record: AttendancePatchRecord,
+  markedBy: string,
+  sessionName?: string,
+): AttendanceRecord => {
+  const existing = getAttendanceForDate(classId, date, sessionId);
+  const patch: AttendanceRecord = {
+    id: existing?.id || attendanceKey(classId, date, sessionId),
+    classId,
+    date,
+    sessionId,
+    sessionName,
+    records: [record],
+    markedBy,
+    updatedAt: new Date().toISOString(),
+  };
+  const merged = mergeAttendanceRecord(existing, patch);
+  saveAttendance(merged);
+  return merged;
 };
 
 // ─── Payments ────────────────────────────────────────────────────────────────
@@ -709,3 +796,4 @@ export const deleteExpense = (id: string): void => {
     deleteDoc(doc(db, 'expenses', id)).catch(console.error);
   });
 };
+

@@ -18,7 +18,8 @@ export default function StudentIdCardModal({ student, isOpen, onClose }: Student
 
   if (!isOpen) return null;
 
-  const qrPayload = generateStudentQrPayload(student.studentId || student.registerNo || student.id);
+  const qrPayload = generateStudentQrPayload(student.id);
+  const validTill = `${new Date().getFullYear()}-12-31`;
 
   const handlePrint = () => {
     window.print();
@@ -132,7 +133,7 @@ export default function StudentIdCardModal({ student, isOpen, onClose }: Student
 
           ctx.fillStyle = "#94A3B8";
           ctx.font = "11px sans-serif";
-          ctx.fillText(`Joined: ${formatDate(student.joinDate)}`, 30, 395);
+          ctx.fillText(`Joined: ${formatDate(student.joinDate)} | Valid till: ${validTill}`, 30, 395);
           ctx.textAlign = "right";
           ctx.fillText("Official MYWAY Verification QR Code", 570, 395);
         }
@@ -211,7 +212,7 @@ export default function StudentIdCardModal({ student, isOpen, onClose }: Student
           <div
             id="printable-id-card"
             ref={cardRef}
-            className="w-[360px] min-h-[220px] rounded-xl border-2 border-slate-900 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white p-4 shadow-xl flex flex-col justify-between relative overflow-hidden"
+            className="w-[360px] min-h-[240px] rounded-xl border-2 border-slate-900 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white p-4 shadow-xl flex flex-col justify-between relative overflow-hidden"
           >
             {/* Background Decorative Graphic */}
             <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-teal-500/10 blur-xl pointer-events-none" />
@@ -231,7 +232,7 @@ export default function StudentIdCardModal({ student, isOpen, onClose }: Student
             {/* Card Body: Photo, Info, QR */}
             <div className="flex items-center gap-3 my-2">
               {/* Photo Avatar */}
-              <div className="w-14 h-14 rounded-lg bg-teal-600/30 border border-teal-400/40 flex items-center justify-center text-teal-200 text-xl font-bold flex-shrink-0 shadow-inner">
+              <div className="w-12 h-12 rounded-lg bg-teal-600/30 border border-teal-400/40 flex items-center justify-center text-teal-200 text-xl font-bold flex-shrink-0 shadow-inner">
                 {student.fullName.charAt(0)}
               </div>
 
@@ -252,7 +253,7 @@ export default function StudentIdCardModal({ student, isOpen, onClose }: Student
               <div className="p-1.5 bg-white rounded-lg shadow-md flex-shrink-0 flex items-center justify-center">
                 <QRCodeSVG
                   value={qrPayload}
-                  size={64}
+                  size={104}
                   level="H"
                   includeMargin={false}
                   bgColor="#FFFFFF"
@@ -267,7 +268,7 @@ export default function StudentIdCardModal({ student, isOpen, onClose }: Student
                 <Phone className="w-2.5 h-2.5 text-teal-400" />
                 Emergency: {student.guardianPhone} ({student.guardianRelationship || "Guardian"})
               </div>
-              <div>Joined: {formatDate(student.joinDate)}</div>
+              <div>Valid till: {validTill}</div>
             </div>
           </div>
         </div>

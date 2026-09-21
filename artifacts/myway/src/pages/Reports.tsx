@@ -2,7 +2,7 @@ import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { getStudents, getClasses, getPayments, getAttendance, getTeachers, getTeacherPayments, getExpenses } from "@/lib/storage";
 import { formatCurrency, formatMonth, getGrade } from "@/lib/utils";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { Link } from "wouter";
 
 const COLORS = ['#1a3a6b','#1a8075','#f97316','#22c55e','#a855f7'];
@@ -44,6 +44,36 @@ export default function Reports() {
     const rate = total > 0 ? Math.round((present / total) * 100) : 0;
     return { name: c.subject, rate, sessions: records.length, present, total };
   });
+
+  const studentAttendance = students.map(student => {
+    let present = 0, late = 0, absent = 0, total = 0;
+    attendance.forEach(a => {
+      const record = a.records.find(r => r.studentId === student.id);
+      if (!record) return;
+      total++;
+      if (record.status === 'Present') present++;
+      if (record.status === 'Late') late++;
+      if (record.status === 'Absent') absent++;
+    });
+    const attended = present + late;
+    const rate = total > 0 ? Math.round((attended / total) * 100) : 0;
+    return { student, present, late, absent, total, rate };
+  }).filter(row => row.total > 0).sort((a, b) => a.rate - b.rate || a.student.fullName.localeCompare(b.student.fullName));
+
+  const exportAttendanceCsv = () => {
+    const rows = [
+      ['Student ID', 'Student Name', 'Total Sessions', 'Present', 'Late', 'Absent', 'Attendance Rate'],
+      ...studentAttendance.map(row => [row.student.studentId, row.student.fullName, row.total, row.present, row.late, row.absent, row.rate + '%']),
+    ];
+    const csv = rows.map(row => row.map(value => '"' + String(value).replace(/"/g, '""') + '"').join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'attendance-summary-' + new Date().toISOString().slice(0, 10) + '.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   // Students Report
   const gradeCount: Record<string, number> = {};
@@ -185,7 +215,12 @@ export default function Reports() {
       {activeTab === 'attendance' && (
         <div className="space-y-4">
           <div className="bg-card border border-border rounded-xl p-5">
-            <h3 className="font-semibold text-foreground mb-4">Attendance Rate by Class</h3>
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="font-semibold text-foreground">Attendance Rate by Class</h3>
+              <button onClick={exportAttendanceCsv} className="print:hidden inline-flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-xs hover:bg-muted">
+                <Download className="w-3.5 h-3.5" /> CSV
+              </button>
+            </div>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={attendanceByClass} margin={{ top: 0, right: 0, left: -15, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -218,6 +253,27 @@ export default function Reports() {
                 {attendanceByClass.length === 0 && <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">No attendance data.</td></tr>}
               </tbody>
             </table>
+          </div>
+
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-border font-semibold text-foreground">Students Below 75% Attendance</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b border-border bg-muted/40"><th className="text-left px-4 py-2 text-xs text-muted-foreground font-semibold">Student</th><th className="text-left px-4 py-2 text-xs text-muted-foreground font-semibold">Sessions</th><th className="text-left px-4 py-2 text-xs text-muted-foreground font-semibold">Present/Late</th><th className="text-left px-4 py-2 text-xs text-muted-foreground font-semibold">Absent</th><th className="text-left px-4 py-2 text-xs text-muted-foreground font-semibold">Rate</th></tr></thead>
+                <tbody>
+                  {studentAttendance.filter(row => row.rate < 75).map(row => (
+                    <tr key={row.student.id} className="border-b border-border last:border-0">
+                      <td className="px-4 py-2.5"><div className="font-medium">{row.student.fullName}</div><div className="text-xs text-muted-foreground">{row.student.studentId}</div></td>
+                      <td className="px-4 py-2.5">{row.total}</td>
+                      <td className="px-4 py-2.5">{row.present + row.late}</td>
+                      <td className="px-4 py-2.5 text-rose-600">{row.absent}</td>
+                      <td className="px-4 py-2.5 font-semibold">{row.rate}%</td>
+                    </tr>
+                  ))}
+                  {studentAttendance.filter(row => row.rate < 75).length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No at-risk attendance records.</td></tr>}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

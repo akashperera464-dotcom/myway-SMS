@@ -3,6 +3,7 @@
  */
 
 const QR_PREFIX = "MYWAY:STD:";
+const QR_VERSION = "2";
 
 /**
  * Format a student ID into a standardized MYWAY QR Payload
@@ -10,7 +11,7 @@ const QR_PREFIX = "MYWAY:STD:";
 export function generateStudentQrPayload(studentIdOrRegNo: string): string {
   if (!studentIdOrRegNo) return "";
   if (studentIdOrRegNo.startsWith(QR_PREFIX)) return studentIdOrRegNo;
-  return `${QR_PREFIX}${studentIdOrRegNo.trim()}`;
+  return `${QR_PREFIX}${QR_VERSION}:${studentIdOrRegNo.trim()}`;
 }
 
 /**
@@ -22,7 +23,12 @@ export function parseStudentQrPayload(scannedCode: string): string | null {
 
   // Handle standard prefix format MYWAY:STD:<id>
   if (clean.startsWith(QR_PREFIX)) {
-    return clean.substring(QR_PREFIX.length).trim();
+    const payload = clean.substring(QR_PREFIX.length).trim();
+    const parts = payload.split(":");
+    if (parts.length >= 2 && parts[0] === QR_VERSION) {
+      return parts.slice(1).join(":").trim();
+    }
+    return payload;
   }
 
   // Fallback: handle direct JSON payload if any
@@ -102,3 +108,5 @@ export function playWarningBeep() {
     // Ignore audio errors if blocked by browser policy
   }
 }
+
+

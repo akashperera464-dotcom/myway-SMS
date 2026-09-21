@@ -87,9 +87,15 @@ export interface AttendanceRecord {
   id: string;
   classId: string;
   date: string;
+  sessionId?: string;
+  sessionName?: string;
+  updatedAt?: string;
   records: {
     studentId: string;
     status: 'Present' | 'Absent' | 'Late' | 'Excused';
+    markedAt?: string;
+    markedBy?: string;
+    method?: 'Manual' | 'QR' | 'USB' | 'Upload' | 'Import';
   }[];
   markedBy?: string;
 }
@@ -168,3 +174,4 @@ export interface AppUser {
   password: string;
   photo?: string;
 }
+

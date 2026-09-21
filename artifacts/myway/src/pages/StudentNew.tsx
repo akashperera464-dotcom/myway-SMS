@@ -81,11 +81,11 @@ export default function StudentNew() {
     }
   };
 
-  const qrPayloadPreview = generateStudentQrPayload(form.registerNo || "REG-PREVIEW");
+  const qrPayloadPreview = generateStudentQrPayload("PREVIEW-STUDENT-ID");
 
   // ── Post-creation success screen ──────────────────────────────────────────
   if (createdStudent) {
-    const createdQr = generateStudentQrPayload(createdStudent.studentId || createdStudent.registerNo || createdStudent.id);
+    const createdQr = generateStudentQrPayload(createdStudent.id);
     return (
       <div className="max-w-lg mx-auto py-12 text-center space-y-6">
         <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">

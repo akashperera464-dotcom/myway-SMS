@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { Camera, CameraOff, Upload, Keyboard, CheckCircle2, AlertTriangle, XCircle, RefreshCw, Volume2, ShieldAlert, SwitchCamera, Check, Clock, UserX, AlertCircle } from "lucide-react";
+import { Camera, CameraOff, Upload, Keyboard, CheckCircle2, AlertTriangle, XCircle, RefreshCw, Volume2, ShieldAlert, SwitchCamera, Check, Clock, UserX, AlertCircle, Flashlight, Search } from "lucide-react";
 import type { Student, TuitionClass } from "@/lib/types";
 import { parseStudentQrPayload, playSuccessBeep, playWarningBeep } from "@/lib/qrUtils";
 import { getPaymentsForStudent, getSettings } from "@/lib/storage";
@@ -10,17 +10,18 @@ export type AttStatus = "Present" | "Late" | "Absent" | "Excused";
 interface QrAttendanceScannerProps {
   activeClass: TuitionClass;
   allStudents: Student[];
-  onMarkAttendance: (studentId: string, status: AttStatus) => void;
+  onMarkAttendance: (studentId: string, status: AttStatus, method?: "QR" | "USB" | "Upload" | "Manual") => void;
   attendanceRecords: Record<string, AttStatus>;
 }
 
 interface ScanLogItem {
   id: string;
   time: string;
-  student: Student;
+  student?: Student;
+  rawCode?: string;
   enrolled: boolean;
   feePending: boolean;
-  status: AttStatus | "Not Enrolled";
+  status: AttStatus | "Not Enrolled" | "Unknown";
 }
 
 const STATUS_CONFIG: Record<AttStatus, { label: string; activeCls: string; inactiveCls: string; icon: typeof Check }> = {
@@ -66,6 +67,9 @@ export default function QrAttendanceScanner({
   const [scanLogs, setScanLogs] = useState<ScanLogItem[]>([]);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [lastSavedMessage, setLastSavedMessage] = useState<string | null>(null);
+  const [torchOn, setTorchOn] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [scannerNotice, setScannerNotice] = useState<string | null>(null);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const readerElementId = "qr-reader-container";
@@ -75,8 +79,26 @@ export default function QrAttendanceScanner({
   const settings = getSettings();
   const currentMonth = settings.currentMonth;
 
+  const getQrbox = () => {
+    const viewport = typeof window === "undefined" ? 250 : Math.min(window.innerWidth, window.innerHeight || window.innerWidth);
+    const size = Math.max(180, Math.min(250, Math.floor(viewport * 0.7)));
+    return { width: size, height: size };
+  };
+
+  const getStudentName = (student?: Student) => (student?.fullName || student?.studentId || "Unknown Student").trim();
+  const getFirstName = (student?: Student) => getStudentName(student).split(/\s+/)[0] || "Student";
+
+  const applyCameraConstraints = async (constraints: MediaTrackConstraints) => {
+    try {
+      const scanner = scannerRef.current as unknown as { applyVideoConstraints?: (constraints: MediaTrackConstraints) => Promise<void> };
+      await scanner.applyVideoConstraints?.(constraints);
+    } catch (err) {
+      console.warn("Camera constraint not supported:", err);
+    }
+  };
+
   // Process a decoded QR payload string
-  const handleDecodedCode = (decodedText: string, customStatus?: AttStatus) => {
+  const handleDecodedCode = (decodedText: string, customStatus?: AttStatus, method: "QR" | "USB" | "Upload" = "QR") => {
     const rawId = parseStudentQrPayload(decodedText);
     if (!rawId) return;
 
@@ -84,17 +106,27 @@ export default function QrAttendanceScanner({
     const cleanSearch = rawId.toLowerCase();
     const student = allStudents.find(
       s =>
-        s.studentId.toLowerCase() === cleanSearch ||
-        s.id.toLowerCase() === cleanSearch ||
-        (s.registerNo && s.registerNo.toLowerCase() === cleanSearch)
+        (s.id || "").toLowerCase() === cleanSearch ||
+        (s.studentId || "").toLowerCase() === cleanSearch ||
+        (s.registerNo || "").toLowerCase() === cleanSearch
     );
 
     const nowTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
     if (!student) {
       if (audioEnabled) playWarningBeep();
-      setLastScanned(null);
-      alert(`Student not found for QR code: "${decodedText}". Please verify student ID.`);
+      const item: ScanLogItem = {
+        id: Math.random().toString(),
+        time: nowTime,
+        rawCode: decodedText,
+        enrolled: false,
+        feePending: false,
+        status: "Unknown",
+      };
+      setLastScanned(item);
+      setScanLogs(prev => [item, ...prev.slice(0, 19)]);
+      setScannerNotice(`Unknown QR: ${decodedText.slice(0, 48)}`);
+      setTimeout(() => setScannerNotice(null), 4000);
       return;
     }
 
@@ -108,8 +140,8 @@ export default function QrAttendanceScanner({
     const targetStatus = customStatus || scanStatus;
 
     if (isEnrolled) {
-      onMarkAttendance(student.id, targetStatus);
-      setLastSavedMessage(`Marked ${student.fullName.split(" ")[0]} as ${targetStatus} & Saved to Cloud`);
+      onMarkAttendance(student.id, targetStatus, method);
+      setLastSavedMessage(`Marked ${getFirstName(student)} as ${targetStatus} & saved`);
       setTimeout(() => setLastSavedMessage(null), 4000);
 
       if (audioEnabled) {
@@ -130,14 +162,14 @@ export default function QrAttendanceScanner({
     };
 
     setLastScanned(item);
-    setScanLogs(prev => [item, ...prev.filter(l => l.student.id !== student.id).slice(0, 19)]);
+    setScanLogs(prev => [item, ...prev.filter(l => l.student?.id !== student.id).slice(0, 19)]);
   };
 
   // Change status of already scanned student
   const handleUpdateScannedStatus = (studentId: string, newStatus: AttStatus) => {
-    onMarkAttendance(studentId, newStatus);
-    setLastScanned(prev => (prev && prev.student.id === studentId ? { ...prev, status: newStatus } : prev));
-    setScanLogs(prev => prev.map(l => (l.student.id === studentId ? { ...l, status: newStatus } : l)));
+    onMarkAttendance(studentId, newStatus, "Manual");
+    setLastScanned(prev => (prev?.student?.id === studentId ? { ...prev, status: newStatus } : prev));
+    setScanLogs(prev => prev.map(l => (l.student?.id === studentId ? { ...l, status: newStatus } : l)));
     setLastSavedMessage(`Updated to ${newStatus} & Saved to Cloud`);
     setTimeout(() => setLastSavedMessage(null), 3000);
   };
@@ -154,7 +186,7 @@ export default function QrAttendanceScanner({
         { facingMode },
         {
           fps: 12,
-          qrbox: { width: 250, height: 250 },
+          qrbox: getQrbox(),
           aspectRatio: 1.0,
         },
         (decodedText) => {
@@ -165,6 +197,7 @@ export default function QrAttendanceScanner({
         }
       );
       setCameraActive(true);
+      if (zoom > 1) applyCameraConstraints({ advanced: [{ zoom } as MediaTrackConstraintSet] });
     } catch (err: unknown) {
       console.warn("Camera primary start error:", err);
       // Fallback: try default camera without facingMode restriction
@@ -175,7 +208,7 @@ export default function QrAttendanceScanner({
             const selectedCam = cameras[cameras.length - 1]; // usually back camera
             await scannerRef.current.start(
               selectedCam.id,
-              { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+              { fps: 10, qrbox: getQrbox(), aspectRatio: 1.0 },
               (decodedText) => handleDecodedCode(decodedText),
               () => {}
             );
@@ -228,6 +261,7 @@ export default function QrAttendanceScanner({
   // Handle USB Barcode/QR Scanner Keyboard Input
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (document.visibilityState === "hidden" || inputMode !== "manual") return;
       // Don't capture when typing inside an input field
       const activeTag = document.activeElement?.tagName;
       if (activeTag === "INPUT" || activeTag === "TEXTAREA" || activeTag === "SELECT") {
@@ -236,7 +270,7 @@ export default function QrAttendanceScanner({
 
       if (e.key === "Enter") {
         if (keyboardBufferRef.current.trim().length > 0) {
-          handleDecodedCode(keyboardBufferRef.current.trim());
+          handleDecodedCode(keyboardBufferRef.current.trim(), undefined, "USB");
           keyboardBufferRef.current = "";
         }
       } else if (e.key.length === 1) {
@@ -253,7 +287,7 @@ export default function QrAttendanceScanner({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [activeClass, allStudents, audioEnabled, scanStatus]);
+  }, [activeClass, allStudents, audioEnabled, scanStatus, inputMode]);
 
   // Handle File Upload Scan
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -269,12 +303,13 @@ export default function QrAttendanceScanner({
 
       const html5QrCode = new Html5Qrcode(tempElementId);
       const decodedText = await html5QrCode.scanFile(file, true);
-      handleDecodedCode(decodedText);
+      handleDecodedCode(decodedText, undefined, "Upload");
       await html5QrCode.clear();
       document.body.removeChild(div);
       e.target.value = "";
     } catch {
-      alert("Could not detect a valid QR Code in the uploaded image. Please ensure the QR code is clearly visible.");
+      setScannerNotice("Could not detect a valid QR code in that image.");
+      if (audioEnabled) playWarningBeep();
       e.target.value = "";
     }
   };
@@ -282,9 +317,20 @@ export default function QrAttendanceScanner({
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (manualCode.trim()) {
-      handleDecodedCode(manualCode.trim());
+      handleDecodedCode(manualCode.trim(), undefined, "USB");
       setManualCode("");
     }
+  };
+
+  const toggleTorch = async () => {
+    const next = !torchOn;
+    await applyCameraConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] });
+    setTorchOn(next);
+  };
+
+  const handleZoomChange = async (value: number) => {
+    setZoom(value);
+    await applyCameraConstraints({ advanced: [{ zoom: value } as MediaTrackConstraintSet] });
   };
 
   return (
@@ -376,6 +422,19 @@ export default function QrAttendanceScanner({
                 <span>{facingMode === "environment" ? "Back Cam" : "Front Cam"}</span>
               </button>
               <button
+                onClick={toggleTorch}
+                disabled={!cameraActive}
+                className={`flex items-center gap-1 px-2.5 py-1 text-xs border border-border rounded-lg hover:bg-muted transition-colors ${torchOn ? "text-amber-600 border-amber-300 bg-amber-50" : "text-muted-foreground hover:text-foreground"}`}
+                title="Toggle flashlight"
+              >
+                <Flashlight className="w-3.5 h-3.5" />
+                <span>{torchOn ? "Torch On" : "Torch"}</span>
+              </button>
+              <label className="hidden sm:flex items-center gap-1 px-2.5 py-1 text-xs border border-border rounded-lg text-muted-foreground">
+                <Search className="w-3.5 h-3.5 text-primary" />
+                <input type="range" min="1" max="3" step="0.1" value={zoom} onChange={e => handleZoomChange(Number(e.target.value))} className="w-20" />
+              </label>
+              <button
                 onClick={cameraActive ? stopCamera : startCamera}
                 className="flex items-center gap-1 px-2.5 py-1 text-xs border border-border rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -386,6 +445,13 @@ export default function QrAttendanceScanner({
           )}
         </div>
       </div>
+
+      {scannerNotice && (
+        <div className="p-3 bg-amber-500/15 border border-amber-500/30 rounded-xl text-xs font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+          <span>{scannerNotice}</span>
+        </div>
+      )}
 
       {lastSavedMessage && (
         <div className="p-3 bg-emerald-500/15 border border-emerald-500/30 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 flex items-center gap-2 animate-in fade-in duration-150">
@@ -511,16 +577,16 @@ export default function QrAttendanceScanner({
                   }`}
                 >
                   <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center text-lg font-bold flex-shrink-0">
-                    {lastScanned.student.fullName.charAt(0)}
+                    {getStudentName(lastScanned.student).charAt(0)}
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-bold text-foreground truncate">{lastScanned.student.fullName}</h4>
+                      <h4 className="text-sm font-bold text-foreground truncate">{getStudentName(lastScanned.student)}</h4>
                       <span className="text-[11px] font-mono text-muted-foreground">{lastScanned.time}</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {lastScanned.student.studentId} · {lastScanned.student.school} ({lastScanned.student.grade})
+                      {lastScanned.student ? `${lastScanned.student.studentId} - ${lastScanned.student.school} (${lastScanned.student.grade})` : lastScanned.rawCode}
                     </p>
 
                     <div className="flex flex-wrap gap-2 mt-2">
@@ -530,7 +596,7 @@ export default function QrAttendanceScanner({
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-200 border border-rose-300">
-                          <XCircle className="w-3.5 h-3.5" /> Not Enrolled in {activeClass.name}
+                          <XCircle className="w-3.5 h-3.5" /> {lastScanned.status === "Unknown" ? "Unknown QR" : `Not Enrolled in ${activeClass.name}`}
                         </span>
                       )}
 
@@ -542,17 +608,19 @@ export default function QrAttendanceScanner({
                     </div>
 
                     {/* Quick Status Adjustment Buttons */}
-                    {lastScanned.enrolled && (
+                    {lastScanned.enrolled && lastScanned.student && (
                       <div className="mt-3 pt-3 border-t border-border/50">
                         <span className="text-[11px] font-medium text-muted-foreground block mb-1.5">Change Status:</span>
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {(["Present", "Late", "Excused", "Absent"] as AttStatus[]).map((status) => {
-                            const isCurrent = (attendanceRecords[lastScanned.student.id] || lastScanned.status) === status;
+                            const scannedStudent = lastScanned.student;
+                            if (!scannedStudent) return null;
+                            const isCurrent = (attendanceRecords[scannedStudent.id] || lastScanned.status) === status;
                             return (
                               <button
                                 key={status}
                                 type="button"
-                                onClick={() => handleUpdateScannedStatus(lastScanned.student.id, status)}
+                                onClick={() => handleUpdateScannedStatus(scannedStudent.id, status)}
                                 className={`px-2.5 py-1 text-xs rounded-md border font-semibold transition-all ${
                                   isCurrent
                                     ? STATUS_CONFIG[status].activeCls
@@ -590,15 +658,15 @@ export default function QrAttendanceScanner({
             ) : (
               <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                 {scanLogs.map(log => {
-                  const currentStatus = (attendanceRecords[log.student.id] || log.status) as AttStatus | "Not Enrolled";
+                  const currentStatus = log.student ? (attendanceRecords[log.student.id] || log.status) as AttStatus | "Not Enrolled" : "Unknown";
                   return (
                     <div
                       key={log.id}
                       className="flex items-center justify-between p-2.5 border border-border rounded-lg text-xs hover:bg-muted/40 transition-colors"
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-semibold text-foreground truncate">{log.student.fullName}</span>
-                        <span className="text-[10px] text-muted-foreground font-mono">({log.student.studentId})</span>
+                        <span className="font-semibold text-foreground truncate">{getStudentName(log.student)}</span>
+                        <span className="text-[10px] text-muted-foreground font-mono">({log.student?.studentId || log.rawCode || "Unknown"})</span>
                       </div>
 
                       <div className="flex items-center gap-2 flex-shrink-0">
@@ -609,10 +677,10 @@ export default function QrAttendanceScanner({
                         )}
                         <span className="text-[10px] text-muted-foreground font-mono">{log.time}</span>
 
-                        {log.enrolled ? (
+                        {log.enrolled && log.student ? (
                           <select
                             value={currentStatus}
-                            onChange={(e) => handleUpdateScannedStatus(log.student.id, e.target.value as AttStatus)}
+                            onChange={(e) => log.student && handleUpdateScannedStatus(log.student.id, e.target.value as AttStatus)}
                             className="px-2 py-0.5 rounded text-[11px] font-bold border border-input bg-background cursor-pointer"
                           >
                             <option value="Present">Present</option>
