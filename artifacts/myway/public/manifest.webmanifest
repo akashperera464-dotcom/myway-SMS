@@ -1,0 +1,24 @@
+{
+  "name": "MYWAY Student Management System",
+  "short_name": "MYWAY SMS",
+  "description": "Student, class, attendance and payment management for MYWAY Educational Institute.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/opengraph.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}

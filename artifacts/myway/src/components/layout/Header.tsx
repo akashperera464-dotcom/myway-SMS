@@ -51,7 +51,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
     .toUpperCase() || "U";
 
   return (
-    <header className="bg-card border-b border-border px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3 flex-shrink-0 w-full relative z-20">
+    <header className="bg-card border-b border-border px-3 sm:px-4 pb-2.5 sm:pb-3 pwa-header-safe flex items-center gap-2 sm:gap-3 flex-shrink-0 w-full relative z-20">
       {/* Subtle top glow line */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
 

@@ -112,7 +112,7 @@ function Login() {
 
   return (
     <div
-      className="flex items-center justify-center p-4 relative overflow-hidden bg-slate-950"
+      className="flex items-center justify-center px-4 relative overflow-hidden bg-slate-950"
       style={{
         // 100dvh = dynamic viewport height: accounts for mobile address bar / toolbar
         // appearing/disappearing so the background image always fills the actual
@@ -120,6 +120,8 @@ function Login() {
         // via the .min-h-screen-dvh class in index.css.
         minHeight: "100dvh",
         height: "100dvh",
+        paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)",
         ...(bgUrl
           ? {
               backgroundImage: `url(${bgUrl})`,
@@ -134,7 +136,7 @@ function Login() {
       }}
     >
       {/* Dark frosted glass overlay over background image to guarantee high contrast */}
-      <div className={`absolute inset-0 ${bgUrl ? "bg-black/65 backdrop-blur-[2px]" : "bg-background"}`} />
+      <div className={`absolute inset-0 ${bgUrl ? "bg-black/50 backdrop-blur-[1.5px]" : "bg-background"}`} />
 
       {/* Background decorative glows */}
       <div className="absolute top-[-10%] left-[-10%] w-96 h-96 rounded-full bg-primary/15 blur-[100px] pointer-events-none" />
@@ -166,7 +168,7 @@ function Login() {
         </div>
 
         {/* Card */}
-        <div className="bg-card/95 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl p-7 shadow-2xl relative overflow-hidden">
+        <div className="bg-card/70 backdrop-blur-2xl border border-white/25 dark:border-white/15 rounded-2xl p-7 shadow-2xl relative overflow-hidden ring-1 ring-black/20">
           {/* Card top glow line */}
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent" />
 
@@ -184,7 +186,7 @@ function Login() {
                 type="text"
                 value={username}
                 onChange={e => { setUsername(e.target.value); setError(""); }}
-                className="w-full px-4 py-2.5 border border-input rounded-xl bg-background/80 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all placeholder:text-muted-foreground/50 shadow-inner"
+                className="w-full px-4 py-2.5 border border-white/15 rounded-xl bg-background/85 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all placeholder:text-muted-foreground/60 shadow-inner backdrop-blur-md"
                 placeholder="you@myway.lk"
                 autoComplete="off"
               />
@@ -198,7 +200,7 @@ function Login() {
                 type="password"
                 value={password}
                 onChange={e => { setPassword(e.target.value); setError(""); }}
-                className="w-full px-4 py-2.5 border border-input rounded-xl bg-background/80 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all placeholder:text-muted-foreground/50 shadow-inner"
+                className="w-full px-4 py-2.5 border border-white/15 rounded-xl bg-background/85 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all placeholder:text-muted-foreground/60 shadow-inner backdrop-blur-md"
                 placeholder="••••••••"
                 autoComplete="off"
               />

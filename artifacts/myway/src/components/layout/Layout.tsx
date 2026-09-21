@@ -44,8 +44,8 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div
-      style={{ height: `${vh}px`, width: "100%", display: "flex", flexDirection: "row", overflow: "hidden", position: "relative" }}
-      className="bg-background"
+      style={{ height: `calc(${vh}px - var(--safe-bottom))`, width: "100%", display: "flex", flexDirection: "row", overflow: "hidden", position: "relative" }}
+      className="bg-background pwa-shell"
     >
       {/* Mobile overlay (taps the drawer shut) */}
       {mobileOpen && (
@@ -65,9 +65,9 @@ export default function Layout({ children }: LayoutProps) {
       <div
         style={{
           position: "fixed",
-          top: 0,
-          left: 0,
-          height: `${vh}px`,
+          top: "var(--safe-top)",
+          left: "var(--safe-left)",
+          height: `calc(${vh}px - var(--safe-top) - var(--safe-bottom))`,
           zIndex: 50,
           transform: mobileOpen ? "translateX(0)" : "translateX(-100%)",
           transition: "transform 0.3s ease",
@@ -82,7 +82,7 @@ export default function Layout({ children }: LayoutProps) {
       </div>
 
       {/* Main content */}
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", height: `${vh}px`, overflow: "hidden" }}>
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
         <Header onMenuToggle={() => setMobileOpen(v => !v)} />
 
         {/* Scrollable page content */}
@@ -93,7 +93,7 @@ export default function Layout({ children }: LayoutProps) {
             overflowX: "hidden",
             WebkitOverflowScrolling: "touch",
           }}
-          className="p-3 sm:p-4 md:p-6 lg:pb-6"
+          className="p-3 sm:p-4 md:p-6 lg:pb-6 pwa-scroll-safe"
         >
           {children}
         </div>
