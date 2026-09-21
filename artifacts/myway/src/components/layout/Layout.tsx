@@ -20,12 +20,14 @@ export default function Layout({ children }: LayoutProps) {
   useStorageSync(["myway_users", "myway_session_user", "myway_settings"]);
 
   useEffect(() => {
-    const update = () => setVh(window.innerHeight);
+    const update = () => setVh(Math.round(window.visualViewport?.height || window.innerHeight));
     update();
     window.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("resize", update);
     window.addEventListener("orientationchange", update);
     return () => {
       window.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("resize", update);
       window.removeEventListener("orientationchange", update);
     };
   }, []);
@@ -44,7 +46,7 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div
-      style={{ height: `calc(${vh}px - var(--safe-bottom))`, width: "100%", display: "flex", flexDirection: "row", overflow: "hidden", position: "relative" }}
+      style={{ height: `${vh}px`, width: "100%", display: "flex", flexDirection: "row", overflow: "hidden", position: "relative" }}
       className="bg-background pwa-shell"
     >
       {/* Mobile overlay (taps the drawer shut) */}
@@ -67,7 +69,7 @@ export default function Layout({ children }: LayoutProps) {
           position: "fixed",
           top: "var(--safe-top)",
           left: "var(--safe-left)",
-          height: `calc(${vh}px - var(--safe-top) - var(--safe-bottom))`,
+          height: `calc(${vh}px - var(--safe-top))`,
           zIndex: 50,
           transform: mobileOpen ? "translateX(0)" : "translateX(-100%)",
           transition: "transform 0.3s ease",
