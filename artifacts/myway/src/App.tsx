@@ -112,14 +112,8 @@ function Login() {
 
   return (
     <div
-      className="flex items-center justify-center px-4 relative overflow-hidden bg-slate-950"
+      className="login-screen flex items-center justify-center px-4 relative overflow-x-hidden overflow-y-auto bg-slate-950"
       style={{
-        // 100dvh = dynamic viewport height: accounts for mobile address bar / toolbar
-        // appearing/disappearing so the background image always fills the actual
-        // visible screen on every phone. Falls back to 100vh on older browsers
-        // via the .min-h-screen-dvh class in index.css.
-        minHeight: "100dvh",
-        height: "100dvh",
         paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)",
         paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)",
         ...(bgUrl
@@ -143,23 +137,23 @@ function Login() {
       <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 rounded-full bg-accent/15 blur-[100px] pointer-events-none" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-secondary/10 blur-[120px] pointer-events-none" />
 
-      <div className="w-full max-w-[390px] relative z-10">
+      <div className="w-full max-w-[390px] relative z-10 my-auto py-4">
         {/* Logo area */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-5 sm:mb-8">
           <div className="relative inline-flex">
             {settings.logo ? (
               <img
                 src={settings.logo}
                 alt={settings.name}
-                className="w-16 h-16 rounded-2xl object-cover mx-auto mb-4 border-2 border-primary/40 shadow-xl glow-teal bg-black/40"
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover mx-auto mb-4 border-2 border-primary/40 shadow-xl glow-teal bg-black/40"
               />
             ) : (
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center mx-auto mb-4 glow-teal shadow-xl border border-white/20">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center mx-auto mb-4 glow-teal shadow-xl border border-white/20">
                 <span className="text-primary-foreground font-black text-xl tracking-tight">MW</span>
               </div>
             )}
           </div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight drop-shadow-md">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight drop-shadow-md">
             {settings.name || "MYWAY"}
           </h1>
           <p className="text-xs text-slate-300 font-medium mt-1 tracking-wide drop-shadow-sm">
@@ -168,11 +162,11 @@ function Login() {
         </div>
 
         {/* Card */}
-        <div className="bg-card/70 backdrop-blur-2xl border border-white/25 dark:border-white/15 rounded-2xl p-7 shadow-2xl relative overflow-hidden ring-1 ring-black/20">
+        <div className="bg-card/75 backdrop-blur-2xl border border-white/25 dark:border-white/15 rounded-2xl p-5 sm:p-7 shadow-2xl relative overflow-hidden ring-1 ring-black/20">
           {/* Card top glow line */}
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent" />
 
-          <div className="mb-6">
+          <div className="mb-5 sm:mb-6">
             <h2 className="text-xl font-bold text-foreground">Welcome back</h2>
             <p className="text-xs text-muted-foreground mt-0.5">Sign in to your institute account</p>
           </div>

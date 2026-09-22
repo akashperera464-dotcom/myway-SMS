@@ -346,3 +346,17 @@
     -webkit-user-select: text;
   }
 }
+
+
+@layer utilities {
+  .login-screen {
+    min-height: 100vh;
+    min-height: 100svh;
+  }
+
+  @supports (min-height: 100dvh) {
+    .login-screen {
+      min-height: 100dvh;
+    }
+  }
+}
