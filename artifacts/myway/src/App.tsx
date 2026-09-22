@@ -112,7 +112,7 @@ function Login() {
 
   return (
     <div
-      className="login-screen flex items-center justify-center px-4 relative bg-slate-950"
+      className="login-screen px-4 relative isolate bg-slate-950"
       style={{
         paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)",
         paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)",
@@ -130,14 +130,9 @@ function Login() {
       }}
     >
       {/* Dark frosted glass overlay over background image to guarantee high contrast */}
-      <div className={`fixed inset-0 ${bgUrl ? "bg-black/50 backdrop-blur-[1.5px]" : "bg-background"}`} />
+      <div className={`pointer-events-none fixed inset-0 z-0 ${bgUrl ? "bg-black/50 backdrop-blur-[1.5px]" : "bg-background"}`} />
 
-      {/* Background decorative glows */}
-      <div className="fixed top-[-10%] left-[-10%] w-96 h-96 rounded-full bg-primary/15 blur-[100px] pointer-events-none" />
-      <div className="fixed bottom-[-10%] right-[-10%] w-96 h-96 rounded-full bg-accent/15 blur-[100px] pointer-events-none" />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-secondary/10 blur-[120px] pointer-events-none" />
-
-      <div className="w-full max-w-[390px] relative z-10 my-auto py-4">
+      <div className="relative z-20 mx-auto flex min-h-full w-full max-w-[390px] flex-col justify-center py-4">
         {/* Logo area */}
         <div className="text-center mb-5 sm:mb-8">
           <div className="relative inline-flex">
