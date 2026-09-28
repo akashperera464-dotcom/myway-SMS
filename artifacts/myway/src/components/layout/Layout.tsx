@@ -18,6 +18,15 @@ export default function Layout({ children }: LayoutProps) {
   const { user, logout } = useAuth();
   useStorageSync(["myway_users", "myway_session_user", "myway_settings"]);
 
+  useEffect(() => {
+    document.documentElement.classList.add("app-active");
+    document.body.classList.add("app-active");
+    return () => {
+      document.documentElement.classList.remove("app-active");
+      document.body.classList.remove("app-active");
+    };
+  }, []);
+
   // Close mobile drawer on route change so the user always sees fresh content
   useEffect(() => {
     setMobileOpen(false);

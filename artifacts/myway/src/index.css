@@ -219,6 +219,26 @@
   }
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    background-color: #0f4568;
+  }
+
+  html.login-active,
+  body.login-active {
+    background-color: #0f4568 !important;
+    background-image: linear-gradient(180deg, rgba(15, 23, 42, 0.42), rgba(15, 69, 104, 0.95)), var(--login-bg-image, none) !important;
+    background-size: cover !important;
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+  }
+
+  body.login-active #root {
+    background: transparent !important;
+  }
+
+  html.app-active,
+  body.app-active,
+  body.app-active #root {
+    background: hsl(var(--background)) !important;
   }
 
   /* Custom scrollbar */
@@ -352,46 +372,43 @@
 
 
 @layer utilities {
-  body:has(.login-screen),
-  #root:has(.login-screen) {
-    background: #0f4568;
-  }
-
-  .app-viewport {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
-    left: 0;
-    width: 100%;
-    min-height: 100vh;
-    min-height: -webkit-fill-available;
-    overflow: hidden;
-  }
-
-  @supports (height: 100dvh) {
-    .app-viewport {
-      min-height: 100dvh;
-    }
-  }
-
+  .app-viewport,
   .login-screen {
     position: fixed;
     top: 0;
     right: 0;
-    bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
+    bottom: 0;
     left: 0;
     width: 100%;
+    height: 100vh;
     min-height: 100vh;
     min-height: -webkit-fill-available;
+  }
+
+  .app-viewport {
+    overflow: hidden;
+  }
+
+  .login-screen {
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
 
   @supports (height: 100dvh) {
+    .app-viewport,
     .login-screen {
+      height: 100dvh;
       min-height: 100dvh;
+    }
+  }
+
+  @supports (-webkit-touch-callout: none) {
+    .app-viewport,
+    .login-screen {
+      bottom: -96px;
+      height: calc(100vh + 96px);
+      min-height: calc(100vh + 96px);
     }
   }
 }

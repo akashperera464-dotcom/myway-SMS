@@ -61,6 +61,20 @@ function Login() {
   const settings = getSettings();
   const bgUrl = settings.loginBgUrl;
 
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    html.classList.add("login-active");
+    body.classList.add("login-active");
+    html.style.setProperty("--login-bg-image", bgUrl ? `url("${bgUrl.replace(/"/g, "\\\"")}")` : "none");
+
+    return () => {
+      html.classList.remove("login-active");
+      body.classList.remove("login-active");
+      html.style.removeProperty("--login-bg-image");
+    };
+  }, [bgUrl]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
