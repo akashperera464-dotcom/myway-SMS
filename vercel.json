@@ -1,8 +1,14 @@
 {
-  "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "cd artifacts/myway && pnpm run build",
-  "outputDirectory": "artifacts/myway/dist/public",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+    "installCommand":  "pnpm install --frozen-lockfile",
+    "buildCommand":  "cd artifacts/myway \u0026\u0026 pnpm run build",
+    "outputDirectory":  "artifacts/myway/dist/public",
+    "routes":  [
+                   {
+                       "handle":  "filesystem"
+                   },
+                   {
+                       "src":  "/.*",
+                       "dest":  "/index.html"
+                   }
+               ]
 }
