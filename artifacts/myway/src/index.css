@@ -351,8 +351,11 @@
     padding-bottom: max(1rem, var(--safe-bottom));
   }
 
+  /* Bottom navigation bar was removed — no need to reserve extra space
+     at the bottom of the scroll area anymore. Keep only the safe-area
+     inset so the last items don't hide under the iOS home indicator. */
   body.app-active .pwa-scroll-safe {
-    padding-bottom: max(6rem, calc(var(--safe-bottom) + 4rem));
+    padding-bottom: max(1rem, var(--safe-bottom));
   }
 
   .standalone-pwa body {
