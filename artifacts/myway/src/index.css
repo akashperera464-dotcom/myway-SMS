@@ -225,10 +225,24 @@
   html.login-active,
   body.login-active {
     background-color: #0f4568 !important;
-    background-image: linear-gradient(180deg, rgba(15, 23, 42, 0.42), rgba(15, 69, 104, 0.95)), var(--login-bg-image, none) !important;
-    background-size: cover !important;
-    background-position: center center !important;
-    background-repeat: no-repeat !important;
+    background-image: none !important;
+  }
+
+  body.login-active,
+  body.app-active {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body.login-active #root,
+  body.app-active #root {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
   }
 
   body.login-active #root {
@@ -408,12 +422,5 @@
     }
   }
 
-  @supports (-webkit-touch-callout: none) {
-    .app-viewport,
-    .login-screen {
-      bottom: -96px;
-      height: calc(100vh + 96px);
-      min-height: calc(100vh + 96px);
-    }
-  }
+
 }
