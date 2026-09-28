@@ -15,22 +15,8 @@ export default function Layout({ children }: LayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [location, setLocation] = useLocation();
-  const [vh, setVh] = useState(typeof window !== "undefined" ? window.innerHeight : 720);
   const { user, logout } = useAuth();
   useStorageSync(["myway_users", "myway_session_user", "myway_settings"]);
-
-  useEffect(() => {
-    const update = () => setVh(Math.round(window.visualViewport?.height || window.innerHeight));
-    update();
-    window.addEventListener("resize", update);
-    window.visualViewport?.addEventListener("resize", update);
-    window.addEventListener("orientationchange", update);
-    return () => {
-      window.removeEventListener("resize", update);
-      window.visualViewport?.removeEventListener("resize", update);
-      window.removeEventListener("orientationchange", update);
-    };
-  }, []);
 
   // Close mobile drawer on route change so the user always sees fresh content
   useEffect(() => {
@@ -46,8 +32,8 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div
-      style={{ height: `${vh}px`, width: "100%", display: "flex", flexDirection: "row", overflow: "hidden", position: "relative" }}
-      className="bg-background pwa-shell"
+      style={{ width: "100%", display: "flex", flexDirection: "row", overflow: "hidden" }}
+      className="app-viewport bg-background pwa-shell"
     >
       {/* Mobile overlay (taps the drawer shut) */}
       {mobileOpen && (
@@ -69,7 +55,7 @@ export default function Layout({ children }: LayoutProps) {
           position: "fixed",
           top: "var(--safe-top)",
           left: "var(--safe-left)",
-          height: `calc(${vh}px - var(--safe-top))`,
+          height: "calc(100% - var(--safe-top))",
           zIndex: 50,
           transform: mobileOpen ? "translateX(0)" : "translateX(-100%)",
           transition: "transform 0.3s ease",
