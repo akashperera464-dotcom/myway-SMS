@@ -187,31 +187,30 @@
 
 @layer base {
   html {
-    min-height: 100%;
-    height: 100%;
-    min-height: -webkit-fill-available;
-    background: hsl(var(--background));
-    overscroll-behavior: none;
+    --app-viewport-height: 100vh;
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-right: env(safe-area-inset-right, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --safe-left: env(safe-area-inset-left, 0px);
+    width: 100%;
+    min-height: var(--app-viewport-height);
+    height: var(--app-viewport-height);
+    background-color: hsl(var(--background));
+    overscroll-behavior: none;
+  }
+
+  body,
+  #root {
+    width: 100%;
+    min-height: var(--app-viewport-height);
+    height: var(--app-viewport-height);
+    background-color: hsl(var(--background));
   }
 
   body {
-    min-height: 100%;
-    height: 100%;
-    min-height: -webkit-fill-available;
     margin: 0;
     overscroll-behavior: none;
     -webkit-tap-highlight-color: transparent;
-  }
-
-  #root {
-    min-height: 100%;
-    height: 100%;
-    min-height: -webkit-fill-available;
-    background: hsl(var(--background));
   }
 
   * {
@@ -223,36 +222,16 @@
   }
 
   html.login-active,
-  body.login-active {
+  body.login-active,
+  body.login-active #root {
     background-color: #0f4568 !important;
     background-image: none !important;
-  }
-
-  body.login-active,
-  body.app-active {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-  }
-
-  body.login-active #root,
-  body.app-active #root {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-  }
-
-  body.login-active #root {
-    background: transparent !important;
   }
 
   html.app-active,
   body.app-active,
   body.app-active #root {
-    background: hsl(var(--background)) !important;
+    background-color: hsl(var(--background)) !important;
   }
 
 
@@ -394,13 +373,18 @@
   .app-viewport,
   .login-screen {
     position: fixed;
-    top: 0;
-    right: 0;
-    bottom: calc(0px - env(safe-area-inset-bottom, 0px));
-    left: 0;
+    inset: 0;
     width: 100%;
-    height: calc(100vh + env(safe-area-inset-bottom, 0px));
-    min-height: calc(100vh + env(safe-area-inset-bottom, 0px));
+    height: var(--app-viewport-height);
+    min-height: var(--app-viewport-height);
+  }
+
+  .app-viewport {
+    background-color: hsl(var(--background));
+  }
+
+  .login-screen {
+    background-color: #0f4568;
   }
 
   .app-viewport {
@@ -414,10 +398,8 @@
   }
 
   @supports (height: 100dvh) {
-    .app-viewport,
-    .login-screen {
-      height: calc(100dvh + env(safe-area-inset-bottom, 0px));
-      min-height: calc(100dvh + env(safe-area-inset-bottom, 0px));
+    html {
+      --app-viewport-height: 100dvh;
     }
   }
 
