@@ -348,14 +348,13 @@
   }
 
   .pwa-scroll-safe {
-    padding-bottom: max(1rem, var(--safe-bottom));
+    /* User requested true full-screen — no reserved bottom padding.
+       The last items will extend all the way to the screen edge. */
+    padding-bottom: 0;
   }
 
-  /* Bottom navigation bar was removed — no need to reserve extra space
-     at the bottom of the scroll area anymore. Keep only the safe-area
-     inset so the last items don't hide under the iOS home indicator. */
   body.app-active .pwa-scroll-safe {
-    padding-bottom: max(1rem, var(--safe-bottom));
+    padding-bottom: 0;
   }
 
   .standalone-pwa body {
