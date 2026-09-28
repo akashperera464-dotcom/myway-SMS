@@ -374,9 +374,10 @@
   .login-screen {
     position: fixed;
     inset: 0;
+    bottom: calc(0px - var(--safe-bottom));
     width: 100%;
-    height: var(--app-viewport-height);
-    min-height: var(--app-viewport-height);
+    height: calc(var(--app-viewport-height) + var(--safe-bottom));
+    min-height: calc(var(--app-viewport-height) + var(--safe-bottom));
   }
 
   .app-viewport {
