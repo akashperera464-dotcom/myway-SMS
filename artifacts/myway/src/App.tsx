@@ -130,7 +130,7 @@ function Login() {
       }}
     >
       {/* Dark frosted glass overlay over background image to guarantee high contrast */}
-      <div className={`pointer-events-none fixed inset-0 z-0 ${bgUrl ? "bg-slate-950/45 backdrop-blur-[2px]" : "bg-background"}`} />
+      <div className={`pointer-events-none absolute inset-0 z-0 ${bgUrl ? "bg-slate-950/45 backdrop-blur-[2px]" : "bg-background"}`} />
 
       <div className="relative z-20 mx-auto flex min-h-full w-full max-w-[410px] flex-col justify-center py-4">
         {/* Logo area */}
