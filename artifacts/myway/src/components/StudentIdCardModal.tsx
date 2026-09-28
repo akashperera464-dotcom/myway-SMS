@@ -4,12 +4,25 @@ import { X, Printer, Download, Phone, ShieldCheck, Check } from "lucide-react";
 import type { Student } from "@/lib/types";
 import { generateStudentQrPayload } from "@/lib/qrUtils";
 import { formatDate } from "@/lib/utils";
+import { getSettings } from "@/lib/storage";
 
 interface StudentIdCardModalProps {
   student: Student;
   isOpen: boolean;
   onClose: () => void;
 }
+
+const getDefaultValidTill = (student: Student) => {
+  if (student.idCardValidTill) return student.idCardValidTill;
+  const joinDate = student.joinDate ? new Date(student.joinDate) : new Date();
+  const year = Number.isNaN(joinDate.getTime()) ? new Date().getFullYear() : joinDate.getFullYear();
+  return `${year}-12-31`;
+};
+
+const short = (value: string | undefined, max: number, fallback = "-") => {
+  const text = (value || fallback).trim();
+  return text.length > max ? `${text.slice(0, max - 1)}...` : text;
+};
 
 export default function StudentIdCardModal({ student, isOpen, onClose }: StudentIdCardModalProps) {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -18,15 +31,18 @@ export default function StudentIdCardModal({ student, isOpen, onClose }: Student
 
   if (!isOpen) return null;
 
+  const settings = getSettings();
+  const instituteName = settings.name || "MYWAY";
+  const displayName = student.fullName || student.nameInitials || "Student";
+  const initial = displayName.trim().charAt(0).toUpperCase() || "S";
   const qrPayload = generateStudentQrPayload(student.id);
-  const validTill = `${new Date().getFullYear()}-12-31`;
+  const validTill = getDefaultValidTill(student);
 
   const handlePrint = () => {
     window.print();
   };
 
-  // 100% Reliable QR Pass / Code PNG generator with High-DPI Canvas
-  const handleDownloadQrCard = (qrOnly: boolean = false) => {
+  const handleDownloadQrCard = (qrOnly = false) => {
     setDownloading(true);
     try {
       const svgEl = cardRef.current?.querySelector("svg");
@@ -45,108 +61,92 @@ export default function StudentIdCardModal({ student, isOpen, onClose }: Student
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         if (!ctx) {
+          URL.revokeObjectURL(blobURL);
           setDownloading(false);
           return;
         }
 
         if (qrOnly) {
-          // Sharp, high-DPI 500x500 standalone QR
-          canvas.width = 500;
-          canvas.height = 500;
+          canvas.width = 640;
+          canvas.height = 720;
           ctx.fillStyle = "#FFFFFF";
-          ctx.fillRect(0, 0, 500, 500);
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 70, 70, 500, 500);
+          ctx.fillStyle = "#0F172A";
+          ctx.font = "bold 28px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(student.studentId || student.id, 320, 630);
+          ctx.font = "18px sans-serif";
+          ctx.fillText(displayName, 320, 666);
+        } else {
+          canvas.width = 1013;
+          canvas.height = 638;
 
-          // Draw QR centered with 40px quiet zone
-          ctx.drawImage(img, 40, 40, 420, 420);
+          const gradient = ctx.createLinearGradient(0, 0, 1013, 638);
+          gradient.addColorStop(0, "#07111F");
+          gradient.addColorStop(0.56, "#122235");
+          gradient.addColorStop(1, "#0F766E");
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, 1013, 638);
 
-          // Label below QR
+          ctx.fillStyle = "rgba(255, 255, 255, 0.12)";
+          ctx.fillRect(0, 0, 1013, 122);
+          ctx.fillStyle = "#FFFFFF";
+          ctx.font = "900 42px sans-serif";
+          ctx.textAlign = "left";
+          ctx.fillText(instituteName, 54, 58);
+          ctx.fillStyle = "#A7F3D0";
+          ctx.font = "500 18px sans-serif";
+          ctx.fillText("Educational Institute Management", 56, 91);
+
+          ctx.fillStyle = "#14B8A6";
+          ctx.fillRect(54, 162, 160, 160);
+          ctx.fillStyle = "#FFFFFF";
+          ctx.font = "900 78px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(initial, 134, 266);
+
+          ctx.textAlign = "left";
+          ctx.fillStyle = "#FFFFFF";
+          ctx.font = "900 32px sans-serif";
+          ctx.fillText(short(displayName, 30), 246, 188);
+          ctx.fillStyle = "#5EEAD4";
+          ctx.font = "bold 24px monospace";
+          ctx.fillText(student.studentId || student.id, 246, 229);
+          ctx.fillStyle = "#CBD5E1";
+          ctx.font = "22px sans-serif";
+          ctx.fillText(`Reg No: ${student.registerNo || "-"}`, 246, 274);
+          ctx.fillText(`Grade: ${student.grade || "-"}`, 246, 313);
+          ctx.fillText(`School: ${short(student.school, 28)}`, 246, 352);
+
+          ctx.fillStyle = "#FFFFFF";
+          ctx.fillRect(724, 158, 220, 220);
+          ctx.drawImage(img, 746, 180, 176, 176);
           ctx.fillStyle = "#0F172A";
           ctx.font = "bold 16px sans-serif";
           ctx.textAlign = "center";
-          ctx.fillText(student.studentId, 250, 480);
-        } else {
-          // Full Student QR Pass Card (600x420)
-          canvas.width = 600;
-          canvas.height = 420;
+          ctx.fillText("SCAN FOR ATTENDANCE", 834, 408);
 
-          // Background card
-          const gradient = ctx.createLinearGradient(0, 0, 600, 420);
-          gradient.addColorStop(0, "#0F172A");
-          gradient.addColorStop(0.5, "#1E293B");
-          gradient.addColorStop(1, "#0D9488");
-          ctx.fillStyle = gradient;
-          ctx.fillRect(0, 0, 600, 420);
-
-          // Top Header Banner
-          ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
-          ctx.fillRect(0, 0, 600, 75);
-
-          // Institute Name
-          ctx.fillStyle = "#2DD4BF";
-          ctx.font = "900 24px sans-serif";
+          ctx.fillStyle = "rgba(255, 255, 255, 0.13)";
+          ctx.fillRect(0, 514, 1013, 124);
           ctx.textAlign = "left";
-          ctx.fillText("MYWAY", 30, 42);
-
           ctx.fillStyle = "#E2E8F0";
-          ctx.font = "500 12px sans-serif";
-          ctx.fillText("Educational Institute · Student Pass", 30, 62);
-
-          // Pass Badge on top right
-          ctx.fillStyle = "rgba(45, 212, 191, 0.25)";
-          ctx.beginPath();
-          ctx.roundRect(470, 25, 100, 30, 6);
-          ctx.fill();
-          ctx.fillStyle = "#5EEAD4";
-          ctx.font = "bold 11px sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillText("STUDENT PASS", 520, 44);
-
-          // Student Details (Left Column)
-          ctx.textAlign = "left";
-          ctx.fillStyle = "#FFFFFF";
-          ctx.font = "bold 20px sans-serif";
-          ctx.fillText(student.fullName.length > 24 ? student.fullName.slice(0, 24) + "..." : student.fullName, 30, 130);
-
-          ctx.fillStyle = "#2DD4BF";
-          ctx.font = "bold 16px monospace";
-          ctx.fillText(`ID: ${student.studentId}`, 30, 160);
-
-          ctx.fillStyle = "#CBD5E1";
-          ctx.font = "14px sans-serif";
-          ctx.fillText(`Reg No: ${student.registerNo || "N/A"}`, 30, 195);
-          ctx.fillText(`Grade: ${student.grade}`, 30, 225);
-          ctx.fillText(`School: ${student.school.length > 28 ? student.school.slice(0, 28) + "..." : student.school}`, 30, 255);
-          ctx.fillText(`Guardian: ${student.guardianPhone} (${student.guardianRelationship || "Parent"})`, 30, 285);
-
-          // QR Code Card Container (Right Column)
-          ctx.fillStyle = "#FFFFFF";
-          ctx.beginPath();
-          ctx.roundRect(380, 110, 190, 190, 16);
-          ctx.fill();
-
-          // Draw the QR Code image inside the white container
-          ctx.drawImage(img, 395, 125, 160, 160);
-
-          // Footer
-          ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
-          ctx.fillRect(0, 360, 600, 60);
-
-          ctx.fillStyle = "#94A3B8";
-          ctx.font = "11px sans-serif";
-          ctx.fillText(`Joined: ${formatDate(student.joinDate)} | Valid till: ${validTill}`, 30, 395);
+          ctx.font = "20px sans-serif";
+          ctx.fillText(`Guardian: ${student.guardianPhone || "-"}`, 54, 562);
+          ctx.fillText(`Joined: ${student.joinDate ? formatDate(student.joinDate) : "-"}`, 54, 598);
           ctx.textAlign = "right";
-          ctx.fillText("Official MYWAY Verification QR Code", 570, 395);
+          ctx.fillText(`Valid till: ${validTill}`, 958, 562);
+          ctx.fillText("Official Student ID Card", 958, 598);
         }
 
-        const pngFile = canvas.toDataURL("image/png", 1.0);
         const downloadLink = document.createElement("a");
         downloadLink.download = qrOnly
-          ? `QR_Code_${student.studentId || "student"}.png`
-          : `MYWAY_Pass_${student.studentId || "student"}.png`;
-        downloadLink.href = pngFile;
+          ? `MYWAY_QR_${student.studentId || student.id}.png`
+          : `MYWAY_ID_Card_${student.studentId || student.id}.png`;
+        downloadLink.href = canvas.toDataURL("image/png", 1.0);
         downloadLink.click();
         URL.revokeObjectURL(blobURL);
-
+        setDownloading(false);
         setDownloaded(true);
         setTimeout(() => setDownloaded(false), 3000);
       };
@@ -154,149 +154,142 @@ export default function StudentIdCardModal({ student, isOpen, onClose }: Student
       img.onerror = () => {
         console.error("Failed to render QR to image");
         URL.revokeObjectURL(blobURL);
+        setDownloading(false);
       };
 
       img.src = blobURL;
     } catch (err) {
       console.error("QR image generation error:", err);
-    } finally {
       setDownloading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      {/* Print Styles */}
+    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
       <style>{`
         @media print {
-          body * {
-            visibility: hidden;
-          }
-          #printable-id-card, #printable-id-card * {
-            visibility: visible;
-          }
+          body * { visibility: hidden; }
+          #printable-id-card, #printable-id-card * { visibility: visible; }
           #printable-id-card {
             position: absolute;
             left: 50%;
             top: 50%;
             transform: translate(-50%, -50%);
             box-shadow: none !important;
-            border: 2px solid #0f172a !important;
             width: 3.375in !important;
             height: 2.125in !important;
+            border-radius: 0.12in !important;
             page-break-inside: avoid;
           }
         }
       `}</style>
 
-      <div className="bg-card border border-border rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-6 relative animate-in fade-in zoom-in-95 duration-200">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border pb-4">
+      <div className="w-full max-w-xl rounded-2xl border border-white/15 bg-card/95 shadow-2xl p-4 sm:p-6 space-y-5">
+        <div className="flex items-start justify-between gap-4 border-b border-border pb-4">
           <div>
             <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-primary" />
-              Student ID Pass &amp; QR
+              Student ID Card
             </h3>
-            <p className="text-xs text-muted-foreground">Digital pass for automated attendance &amp; verification</p>
+            <p className="text-xs text-muted-foreground">Printable card with attendance QR</p>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            aria-label="Close ID card"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Printable ID Card Container */}
-        <div className="flex justify-center my-2">
+        <div className="flex justify-center overflow-x-auto pb-1">
           <div
             id="printable-id-card"
             ref={cardRef}
-            className="w-[360px] min-h-[240px] rounded-xl border-2 border-slate-900 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white p-4 shadow-xl flex flex-col justify-between relative overflow-hidden"
+            className="relative aspect-[1.586] w-[390px] max-w-full overflow-hidden rounded-2xl border border-white/20 bg-slate-950 text-white shadow-xl"
           >
-            {/* Background Decorative Graphic */}
-            <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-teal-500/10 blur-xl pointer-events-none" />
-            <div className="absolute -left-8 -top-8 w-24 h-24 rounded-full bg-indigo-500/10 blur-xl pointer-events-none" />
+            <div className="absolute inset-0 bg-[linear-gradient(135deg,#07111f_0%,#122235_58%,#0f766e_100%)]" />
+            <div className="absolute inset-x-0 top-0 h-[27%] bg-white/10 border-b border-white/15" />
+            <div className="absolute left-0 top-[27%] h-1 w-full bg-primary" />
 
-            {/* Top Bar / Brand */}
-            <div className="flex items-center justify-between border-b border-white/15 pb-2.5">
-              <div>
-                <div className="text-xs font-black tracking-widest text-teal-400 uppercase">MYWAY</div>
-                <div className="text-[10px] text-slate-300 font-medium">Educational Institute · Kandy</div>
-              </div>
-              <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
-                STUDENT PASS
-              </span>
-            </div>
-
-            {/* Card Body: Photo, Info, QR */}
-            <div className="flex items-center gap-3 my-2">
-              {/* Photo Avatar */}
-              <div className="w-12 h-12 rounded-lg bg-teal-600/30 border border-teal-400/40 flex items-center justify-center text-teal-200 text-xl font-bold flex-shrink-0 shadow-inner">
-                {student.fullName.charAt(0)}
-              </div>
-
-              {/* Student Details */}
-              <div className="flex-1 min-w-0 text-left">
-                <h4 className="text-xs font-bold text-white truncate leading-tight">{student.fullName}</h4>
-                <p className="text-[11px] font-mono text-teal-300 font-semibold">{student.studentId}</p>
-                <div className="text-[10px] text-slate-300 space-y-0.5 mt-1">
-                  <div>
-                    Reg: <span className="text-white font-medium">{student.registerNo || "-"}</span> · Grade:{" "}
-                    <span className="text-white font-medium">{student.grade}</span>
-                  </div>
-                  <div className="truncate">School: {student.school}</div>
+            <div className="relative z-10 flex h-full flex-col justify-between p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-lg font-black leading-none tracking-wide">{instituteName}</div>
+                  <div className="mt-1 text-[10px] font-medium text-teal-100/85">Educational Institute Management</div>
+                </div>
+                <div className="rounded-full border border-teal-300/40 bg-teal-400/15 px-2 py-1 text-[9px] font-bold text-teal-100">
+                  STUDENT ID
                 </div>
               </div>
 
-              {/* QR Code SVG */}
-              <div className="p-1.5 bg-white rounded-lg shadow-md flex-shrink-0 flex items-center justify-center">
-                <QRCodeSVG
-                  value={qrPayload}
-                  size={104}
-                  level="H"
-                  includeMargin={false}
-                  bgColor="#FFFFFF"
-                  fgColor="#0F172A"
-                />
-              </div>
-            </div>
+              <div className="grid grid-cols-[56px_1fr_118px] items-center gap-3">
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-teal-200/40 bg-teal-400/20 text-2xl font-black text-teal-50">
+                  {student.photo ? <img src={student.photo} alt={displayName} className="h-full w-full rounded-xl object-cover" /> : initial}
+                </div>
 
-            {/* Card Footer */}
-            <div className="flex items-center justify-between border-t border-white/15 pt-2 text-[9px] text-slate-400">
-              <div className="flex items-center gap-1 text-slate-300">
-                <Phone className="w-2.5 h-2.5 text-teal-400" />
-                Emergency: {student.guardianPhone} ({student.guardianRelationship || "Guardian"})
+                <div className="min-w-0 text-left">
+                  <div className="truncate text-sm font-black leading-tight">{displayName}</div>
+                  <div className="mt-1 font-mono text-[12px] font-bold text-teal-200">{student.studentId || student.id}</div>
+                  <div className="mt-1 space-y-0.5 text-[10px] text-slate-200/90">
+                    <div>Reg: <span className="font-semibold text-white">{student.registerNo || "-"}</span></div>
+                    <div>Grade: <span className="font-semibold text-white">{student.grade || "-"}</span></div>
+                    <div className="truncate">School: {student.school || "-"}</div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl bg-white p-2 shadow-lg">
+                  <QRCodeSVG
+                    value={qrPayload}
+                    size={102}
+                    level="H"
+                    includeMargin
+                    bgColor="#FFFFFF"
+                    fgColor="#0F172A"
+                  />
+                </div>
               </div>
-              <div>Valid till: {validTill}</div>
+
+              <div className="flex items-end justify-between gap-3 border-t border-white/15 pt-2 text-[9px] text-slate-200/90">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1">
+                    <Phone className="h-2.5 w-2.5 text-teal-200" />
+                    <span className="truncate">{student.guardianPhone || "Guardian phone not set"}</span>
+                  </div>
+                  <div className="mt-0.5">Joined: {student.joinDate ? formatDate(student.joinDate) : "-"}</div>
+                </div>
+                <div className="text-right">
+                  <div>Valid till</div>
+                  <div className="font-semibold text-white">{validTill}</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-border pt-4">
           <button
             onClick={() => handleDownloadQrCard(true)}
             disabled={downloading}
-            className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-lg text-xs font-medium text-foreground hover:bg-muted transition-colors"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 border border-border rounded-lg text-xs font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-60"
           >
-            <Download className="w-3.5 h-3.5" /> Download QR Only
+            <Download className="w-3.5 h-3.5" /> Download QR
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <button
               onClick={() => handleDownloadQrCard(false)}
               disabled={downloading}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-secondary text-secondary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-opacity"
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-secondary text-secondary-foreground rounded-lg text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
             >
-              {downloaded ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Download className="w-3.5 h-3.5" />}
-              {downloaded ? "Saved!" : "Download Full Pass (PNG)"}
+              {downloaded ? <Check className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
+              {downloaded ? "Saved" : "Download PNG"}
             </button>
             <button
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-opacity"
+              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-semibold hover:opacity-90 transition-opacity"
             >
-              <Printer className="w-3.5 h-3.5" /> Print ID Card
+              <Printer className="w-3.5 h-3.5" /> Print Card
             </button>
           </div>
         </div>

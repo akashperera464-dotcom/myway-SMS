@@ -130,9 +130,9 @@ function Login() {
       }}
     >
       {/* Dark frosted glass overlay over background image to guarantee high contrast */}
-      <div className={`pointer-events-none fixed inset-0 z-0 ${bgUrl ? "bg-black/50 backdrop-blur-[1.5px]" : "bg-background"}`} />
+      <div className={`pointer-events-none fixed inset-0 z-0 ${bgUrl ? "bg-slate-950/45 backdrop-blur-[2px]" : "bg-background"}`} />
 
-      <div className="relative z-20 mx-auto flex min-h-full w-full max-w-[390px] flex-col justify-center py-4">
+      <div className="relative z-20 mx-auto flex min-h-full w-full max-w-[410px] flex-col justify-center py-4">
         {/* Logo area */}
         <div className="text-center mb-5 sm:mb-8">
           <div className="relative inline-flex">
@@ -140,56 +140,56 @@ function Login() {
               <img
                 src={settings.logo}
                 alt={settings.name}
-                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover mx-auto mb-4 border-2 border-primary/40 shadow-xl glow-teal bg-black/40"
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl object-cover mx-auto mb-5 border border-white/45 shadow-2xl bg-white/20 backdrop-blur-xl"
               />
             ) : (
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center mx-auto mb-4 glow-teal shadow-xl border border-white/20">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-white/20 backdrop-blur-xl flex items-center justify-center mx-auto mb-5 shadow-2xl border border-white/35">
                 <span className="text-primary-foreground font-black text-xl tracking-tight">MW</span>
               </div>
             )}
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight drop-shadow-md">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight drop-shadow-md">
             {settings.name || "MYWAY"}
           </h1>
-          <p className="text-xs text-slate-300 font-medium mt-1 tracking-wide drop-shadow-sm">
+          <p className="text-sm text-white/78 font-medium mt-2 tracking-wide drop-shadow-sm">
             Educational Institute Management
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-card/75 backdrop-blur-2xl border border-white/25 dark:border-white/15 rounded-2xl p-5 sm:p-7 shadow-2xl relative overflow-hidden ring-1 ring-black/20">
+        <div className="bg-white/15 dark:bg-slate-950/30 backdrop-blur-3xl border border-white/30 rounded-3xl p-5 sm:p-7 shadow-2xl relative overflow-hidden ring-1 ring-white/10">
           {/* Card top glow line */}
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent" />
+          <div className="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
 
           <div className="mb-5 sm:mb-6">
-            <h2 className="text-xl font-bold text-foreground">Welcome back</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Sign in to your institute account</p>
+            <h2 className="text-2xl font-bold text-white">Welcome back</h2>
+            <p className="text-sm text-white/65 mt-1">Sign in to your institute account</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-foreground/90 block mb-1.5 uppercase tracking-wider">
+              <label className="text-xs font-semibold text-white/85 block mb-1.5 uppercase tracking-wider">
                 Email Address
               </label>
               <input
                 type="text"
                 value={username}
                 onChange={e => { setUsername(e.target.value); setError(""); }}
-                className="w-full px-4 py-2.5 border border-white/15 rounded-xl bg-background/85 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all placeholder:text-muted-foreground/60 shadow-inner backdrop-blur-md"
+                className="w-full px-4 py-3 border border-white/20 rounded-2xl bg-white/10 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/60 focus:border-primary/70 transition-all placeholder:text-white/40 shadow-inner backdrop-blur-xl"
                 placeholder="you@myway.lk"
                 autoComplete="off"
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-foreground/90 block mb-1.5 uppercase tracking-wider">
+              <label className="text-xs font-semibold text-white/85 block mb-1.5 uppercase tracking-wider">
                 Password
               </label>
               <input
                 type="password"
                 value={password}
                 onChange={e => { setPassword(e.target.value); setError(""); }}
-                className="w-full px-4 py-2.5 border border-white/15 rounded-xl bg-background/85 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all placeholder:text-muted-foreground/60 shadow-inner backdrop-blur-md"
+                className="w-full px-4 py-3 border border-white/20 rounded-2xl bg-white/10 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/60 focus:border-primary/70 transition-all placeholder:text-white/40 shadow-inner backdrop-blur-xl"
                 placeholder="••••••••"
                 autoComplete="off"
               />
@@ -205,7 +205,7 @@ function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-xl text-sm font-bold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 glow-teal mt-2 shadow-lg"
+              className="w-full px-4 py-3.5 bg-primary text-primary-foreground rounded-2xl text-sm font-bold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 glow-teal mt-2 shadow-lg shadow-primary/20"
             >
               {loading ? (
                 <>
@@ -219,7 +219,7 @@ function Login() {
           </form>
         </div>
 
-        <p className="text-center text-xs text-slate-400 mt-6 drop-shadow-sm font-medium">
+        <p className="text-center text-xs text-white/62 mt-6 drop-shadow-sm font-medium">
           © {new Date().getFullYear()} {settings.name || "MYWAY Educational Institute"}
         </p>
       </div>

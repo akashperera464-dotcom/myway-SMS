@@ -159,7 +159,7 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                   ['Stream', student.stream || '-'], ['Address', student.address], ['District', student.district],
                   ['Province', student.province], ['Guardian', student.guardianName], ['Relationship', student.guardianRelationship],
                   ['Guardian Phone', student.guardianPhone], ['WhatsApp', student.whatsapp], ['Join Date', formatDate(student.joinDate)],
-                  ['Monthly Fee', formatCurrency(student.monthlyFee)], ['Notes', student.notes || '-'],
+                  ['Monthly Fee', formatCurrency(student.monthlyFee)], ['ID Card', student.idCardRequested ? 'Ready until ' + (student.idCardValidTill || '-') : 'Not requested'], ['Notes', student.notes || '-'],
                 ] as [string, string][]).map(([k, v]) => (
                   <div key={k}>
                     <dt className="text-xs text-muted-foreground">{k}</dt>

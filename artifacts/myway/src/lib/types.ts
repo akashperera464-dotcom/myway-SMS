@@ -45,6 +45,9 @@ export interface Student {
   status: 'Active' | 'Inactive' | 'Graduated' | 'Suspended';
   monthlyFee: number;
   photo?: string;
+  idCardRequested?: boolean;
+  idCardCreatedAt?: string;
+  idCardValidTill?: string;
   notes?: string;
 }
 

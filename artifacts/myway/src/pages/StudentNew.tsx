@@ -11,6 +11,12 @@ import StudentIdCardModal from "@/components/StudentIdCardModal";
 const MEDIUMS = ['Sinhala', 'Tamil', 'English'] as const;
 const STATUSES = ['Active', 'Inactive', 'Graduated', 'Suspended'] as const;
 
+const getIdCardValidTill = (joinDate: string) => {
+  const date = joinDate ? new Date(joinDate) : new Date();
+  const year = Number.isNaN(date.getTime()) ? new Date().getFullYear() : date.getFullYear();
+  return `${year}-12-31`;
+};
+
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div>
@@ -31,6 +37,7 @@ export default function StudentNew() {
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [createdStudent, setCreatedStudent] = useState<Student | null>(null);
   const [showIdCard, setShowIdCard] = useState(false);
+  const [prepareIdCard, setPrepareIdCard] = useState(true);
 
   const [form, setForm] = useState({
     registerNo: '', fullName: '', nameInitials: '', dateOfBirth: '', gender: 'Male' as 'Male' | 'Female',
@@ -74,8 +81,15 @@ export default function StudentNew() {
     if (!validate()) return;
     setSaving(true);
     try {
-      const student = addStudent({ ...form, monthlyFee: Number(form.monthlyFee) });
+      const student = addStudent({
+        ...form,
+        monthlyFee: Number(form.monthlyFee),
+        idCardRequested: prepareIdCard,
+        idCardCreatedAt: prepareIdCard ? new Date().toISOString() : undefined,
+        idCardValidTill: prepareIdCard ? getIdCardValidTill(form.joinDate) : undefined,
+      });
       setCreatedStudent(student);
+      setShowIdCard(prepareIdCard);
     } finally {
       setSaving(false);
     }
@@ -95,6 +109,7 @@ export default function StudentNew() {
           <h2 className="text-xl font-bold text-foreground">Student Registered!</h2>
           <p className="text-sm text-muted-foreground mt-1">
             <span className="font-semibold text-foreground">{createdStudent.fullName}</span> has been successfully added to MYWAY.
+            {createdStudent.idCardRequested ? " ID card is ready to print." : " ID card can be created later."}
           </p>
         </div>
 
@@ -113,7 +128,7 @@ export default function StudentNew() {
             onClick={() => setShowIdCard(true)}
             className="flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity"
           >
-            <Printer className="w-4 h-4" /> View &amp; Print ID Card
+            <Printer className="w-4 h-4" /> {createdStudent.idCardRequested ? "Print ID Card" : "Create ID Card"}
           </button>
           <button
             onClick={() => setLocation(`/students/${createdStudent.id}`)}
@@ -202,6 +217,38 @@ export default function StudentNew() {
             <Field label="Email">
               <input type="email" value={form.email} onChange={e => set('email', e.target.value)} className={inputCls} placeholder="e.g. kasun@example.com" />
             </Field>
+          </div>
+        </section>
+
+        <section className="bg-card border border-border rounded-xl p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div>
+              <h3 className="font-semibold text-foreground">Student ID Card</h3>
+              <p className="text-sm text-muted-foreground mt-1">Optional printable card with student details and attendance QR.</p>
+            </div>
+            <label className="flex items-center gap-3 rounded-xl border border-input bg-background/70 px-3 py-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={prepareIdCard}
+                onChange={e => setPrepareIdCard(e.target.checked)}
+                className="rounded"
+              />
+              <span className="text-sm font-medium text-foreground">Prepare ID card after saving</span>
+            </label>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+            <div className="rounded-lg border border-border bg-muted/25 p-3">
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Card Mode</div>
+              <div className="mt-1 font-medium text-foreground">{prepareIdCard ? "Register with ID card" : "Register only"}</div>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/25 p-3">
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">QR Key</div>
+              <div className="mt-1 font-mono text-xs text-foreground">Student document ID</div>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/25 p-3">
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Valid Till</div>
+              <div className="mt-1 font-medium text-foreground">{getIdCardValidTill(form.joinDate)}</div>
+            </div>
           </div>
         </section>
 

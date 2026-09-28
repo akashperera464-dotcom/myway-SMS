@@ -153,9 +153,9 @@ export default function Students() {
                         <button
                           onClick={() => setSelectedStudentForQr(s)}
                           className="flex items-center gap-1 text-xs px-2 py-1 bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-md transition-colors"
-                          title="View and Print QR Pass"
+                          title="View and Print ID Card"
                         >
-                          <QrCode className="w-3.5 h-3.5 text-primary" /> Pass
+                          <QrCode className="w-3.5 h-3.5 text-primary" /> ID Card
                         </button>
                         <Link href={`/students/${s.id}`} className="text-xs text-primary hover:underline px-1 py-1" data-testid={`view-student-${s.id}`}>View</Link>
                         {canEdit && (
