@@ -19,6 +19,59 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    // ─── iOS Safari viewport-height fix ───────────────────────────────────────
+    // Problem: on iOS Safari (and PWA mode), `100dvh` returns a stale/cached
+    // value on the very first paint, so the login background image renders at
+    // the wrong height. It only recalculates after a focus→blur cycle (e.g.
+    // tapping the username field then tapping outside). This is a long-standing
+    // WebKit bug.
+    //
+    // Fix: set the --app-viewport-height CSS variable from JavaScript using
+    // window.innerHeight (which is always live and correct on iOS), and keep
+    // it updated on every viewport change (resize, orientation change,
+    // keyboard show/hide via visualViewport). The CSS in index.css declares
+    // `--app-viewport-height: 100dvh` as the fallback for older browsers that
+    // don't support the JS-set value or visualViewport API.
+    (function () {
+      function setVh() {
+        var h = window.innerHeight;
+        // Guard against zero (rare, but possible in background tabs)
+        if (h > 0) {
+          document.documentElement.style.setProperty('--app-viewport-height', h + 'px');
+          // Force a reflow so any background-image: cover re-renders with
+          // the corrected height immediately.
+          // eslint-disable-next-line no-unused-expressions
+          document.documentElement.offsetHeight;
+        }
+      }
+      // Run ASAP — before the React app renders.
+      setVh();
+      // Re-run on every kind of viewport change iOS can throw at us.
+      window.addEventListener('resize', setVh);
+      window.addEventListener('orientationchange', setVh);
+      // visualViewport fires on keyboard show/hide and on iOS Safari
+      // dynamic-toolbar show/hide — this is the one that actually fixes
+      // the "tap input then tap outside" trigger the user was doing manually.
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', setVh);
+        window.visualViewport.addEventListener('scroll', setVh);
+      }
+      // One more pass after the page is fully loaded, because iOS sometimes
+      // reports a different innerHeight right after the load event.
+      window.addEventListener('load', function () {
+        requestAnimationFrame(setVh);
+        // And a final delayed re-measure in case fonts/images shift layout.
+        setTimeout(setVh, 300);
+      });
+      // When returning to the page from background, the cached height may be
+      // stale again — re-measure on visibility change.
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) setTimeout(setVh, 100);
+      });
+    })();
+  </script>
 </head>
 
 <body>
