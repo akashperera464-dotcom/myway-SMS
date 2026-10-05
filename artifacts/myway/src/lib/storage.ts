@@ -547,6 +547,47 @@ export const deletePayment = (id: string): void => {
   });
 };
 
+// ─── Outstanding Fees (cashier workflow) ────────────────────────────────────
+// For a given student and month (defaults to current month), return a list of
+// { classId, className, teacherName, expectedAmount, status, existingPayment? }
+// describing what the student still owes. Used by the student payment dashboard
+// so the cashier can see outstanding fees at a glance and "Pay All" in one tap.
+export interface OutstandingFee {
+  classId: string;
+  className: string;
+  teacherName: string;
+  expectedAmount: number;
+  status: 'None' | 'Pending' | 'Partial' | 'Paid' | 'Waived';
+  existingPayment?: Payment;
+}
+
+export const getOutstandingFees = (studentId: string, month?: string): OutstandingFee[] => {
+  const student = getStudent(studentId);
+  if (!student) return [];
+  const targetMonth = month || getCurrentMonth();
+  const studentClasses = student.classIds
+    .map(cid => getClass(cid))
+    .filter((c): c is TuitionClass => Boolean(c) && (c as TuitionClass).status === 'Active');
+  const studentPayments = getPaymentsForStudent(studentId).filter(p => p.month === targetMonth);
+
+  return studentClasses.map(c => {
+    const payment = studentPayments.find(p => p.classId === c.id);
+    const teacher = c.teacherId ? getTeacher(c.teacherId) : undefined;
+    const status: OutstandingFee['status'] = payment
+      ? payment.status
+      : 'None';
+    return {
+      classId: c.id,
+      className: c.name,
+      teacherName: teacher?.fullName || '—',
+      expectedAmount: c.monthlyFee,
+      status,
+      existingPayment: payment,
+    };
+  });
+};
+
+
 // ─── Exam Results ────────────────────────────────────────────────────────────
 export const getResults = (): ExamResult[] => getList<ExamResult>(KEYS.results);
 export const getResultsForStudent = (studentId: string): ExamResult[] => getList<ExamResult>(KEYS.results).filter(r => r.studentId === studentId);
